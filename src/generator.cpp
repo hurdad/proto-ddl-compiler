@@ -1,5 +1,6 @@
 #include "generator.hpp"
 
+#include <google/protobuf/descriptor.h>
 #include <google/protobuf/io/zero_copy_stream.h>
 
 #include <algorithm>
@@ -89,17 +90,19 @@ bool DbddlGenerator::Generate(const google::protobuf::FileDescriptor* file,
   }
 
   const std::string base = BaseName(file->name());
-  const std::string ch_name = base + ".clickhouse.sql";
-  const std::string ts_name = base + ".timescaledb.sql";
 
-  const std::string ch_sql = RenderClickHouseDDL(extracted.clickhouse_tables);
-  const std::string ts_sql = RenderTimescaleDDL(extracted.timescale_tables);
-
-  if (!WriteFile(context, ch_name, ch_sql, error)) {
-    return false;
+  if (!extracted.clickhouse_tables.empty()) {
+    const std::string ch_sql = RenderClickHouseDDL(extracted.clickhouse_tables);
+    if (!WriteFile(context, base + ".clickhouse.sql", ch_sql, error)) {
+      return false;
+    }
   }
-  if (!WriteFile(context, ts_name, ts_sql, error)) {
-    return false;
+
+  if (!extracted.timescale_tables.empty()) {
+    const std::string ts_sql = RenderTimescaleDDL(extracted.timescale_tables);
+    if (!WriteFile(context, base + ".timescaledb.sql", ts_sql, error)) {
+      return false;
+    }
   }
 
   return true;

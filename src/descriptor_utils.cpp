@@ -2,6 +2,7 @@
 
 #include <google/protobuf/descriptor.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -10,30 +11,33 @@
 
 namespace {
 
-ColumnIR BuildColumn(const google::protobuf::FieldDescriptor& field, std::vector<std::string>* errors) {
-  ColumnIR col;
-  col.name = field.options().HasExtension(dbddl::db_name) ?
-      field.options().GetExtension(dbddl::db_name) : field.name();
-
+std::optional<ColumnIR> BuildColumn(const google::protobuf::FieldDescriptor& field,
+                                    std::vector<std::string>* errors) {
   const auto mapped = MapFieldTypes(field);
   if (!mapped.has_value()) {
     errors->push_back(
         "Unsupported field type for " + field.containing_type()->full_name() + "." + field.name());
-    return col;
+    return std::nullopt;
   }
 
+  ColumnIR col;
+  col.name = field.options().HasExtension(dbddl::db_name)
+      ? field.options().GetExtension(dbddl::db_name)
+      : field.name();
   col.type_clickhouse = field.options().HasExtension(dbddl::ch_column_type)
       ? field.options().GetExtension(dbddl::ch_column_type)
       : mapped->clickhouse;
   col.type_postgres = field.options().HasExtension(dbddl::pg_column_type)
       ? field.options().GetExtension(dbddl::pg_column_type)
       : mapped->postgres;
-
   col.repeated = field.is_repeated();
+  // In proto3, is_required() is always false; use has_presence() so that
+  // explicitly-optional fields (proto2 optional / proto3 optional) are
+  // nullable while implicit proto3 singular fields default to NOT NULL.
+  // db_nullable always overrides this heuristic.
   col.nullable = field.options().HasExtension(dbddl::db_nullable)
       ? field.options().GetExtension(dbddl::db_nullable)
-      : !field.is_required();
-
+      : (field.has_presence() && !field.is_required());
   return col;
 }
 
@@ -44,12 +48,6 @@ void VisitMessage(const google::protobuf::Descriptor& message, TableExtractionRe
 
   if (has_ch || has_ts) {
     TableIR base;
-    if (has_ch) {
-      base.name = opts.GetExtension(dbddl::ch_table);
-    } else {
-      base.name = opts.GetExtension(dbddl::ts_table);
-    }
-
     base.ch_engine = opts.HasExtension(dbddl::ch_engine)
         ? opts.GetExtension(dbddl::ch_engine)
         : "MergeTree()";
@@ -62,10 +60,16 @@ void VisitMessage(const google::protobuf::Descriptor& message, TableExtractionRe
     base.ts_time_column = opts.HasExtension(dbddl::ts_time_column)
         ? opts.GetExtension(dbddl::ts_time_column)
         : "";
+    base.ts_chunk_interval = opts.HasExtension(dbddl::ts_chunk_interval)
+        ? opts.GetExtension(dbddl::ts_chunk_interval)
+        : "";
 
     base.columns.reserve(static_cast<size_t>(message.field_count()));
     for (int i = 0; i < message.field_count(); ++i) {
-      base.columns.push_back(BuildColumn(*message.field(i), &result->errors));
+      auto col = BuildColumn(*message.field(i), &result->errors);
+      if (col.has_value()) {
+        base.columns.push_back(std::move(*col));
+      }
     }
 
     if (has_ch) {

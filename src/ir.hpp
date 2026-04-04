@@ -20,4 +20,5 @@ struct TableIR {
   std::string ch_order_by;
 
   std::string ts_time_column;
+  std::string ts_chunk_interval;
 };

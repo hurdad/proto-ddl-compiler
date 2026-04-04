@@ -1,4 +1,4 @@
-syntax = "proto2";
+syntax = "proto3";
 
 package example;
 
@@ -12,8 +12,8 @@ message Trade {
   option (dbddl.ts_table) = "trades";
   option (dbddl.ts_time_column) = "timestamp";
 
-  optional int64 timestamp = 1 [(dbddl.ch_column_type) = "DateTime64(3)"];
-  optional string symbol = 2;
-  optional double price = 3;
-  optional int32 size = 4;
+  int64 timestamp = 1 [(dbddl.ch_column_type) = "DateTime64(3)"];
+  string symbol = 2;
+  double price = 3;
+  int32 size = 4;
 }

@@ -1,1 +1,145 @@
 # proto-ddl-compiler
+
+A `protoc` plugin (`protoc-gen-dbddl`) that reads proto3 message definitions annotated with custom options and generates DDL for **ClickHouse** and **TimescaleDB**.
+
+## Overview
+
+Annotate your messages with table/column options, then run `protoc` with this plugin to emit `.clickhouse.sql` and `.timescaledb.sql` files.
+
+```proto
+syntax = "proto3";
+
+import "db_options.proto";
+
+message Trade {
+  option (dbddl.ch_table)        = "trades";
+  option (dbddl.ch_partition_by) = "toYYYYMM(timestamp)";
+  option (dbddl.ch_order_by)     = "timestamp";
+
+  option (dbddl.ts_table)        = "trades";
+  option (dbddl.ts_time_column)  = "timestamp";
+
+  int64  timestamp = 1 [(dbddl.ch_column_type) = "DateTime64(3)"];
+  string symbol    = 2;
+  double price     = 3;
+  int32  size      = 4;
+}
+```
+
+Given the example above, the plugin produces:
+
+**`example_trade.clickhouse.sql`**
+```sql
+CREATE TABLE trades
+(
+  timestamp DateTime64(3),
+  symbol String,
+  price Float64,
+  size Int32
+)
+ENGINE = MergeTree()
+PARTITION BY toYYYYMM(timestamp)
+ORDER BY (timestamp);
+```
+
+**`example_trade.timescaledb.sql`**
+```sql
+CREATE TABLE trades (
+  timestamp TIMESTAMPTZ NOT NULL,
+  symbol TEXT NOT NULL,
+  price DOUBLE PRECISION NOT NULL,
+  size INTEGER NOT NULL
+);
+
+SELECT create_hypertable('trades', by_range('timestamp'));
+```
+
+## Options reference
+
+### Message options
+
+| Option               | Description                                        |
+|----------------------|----------------------------------------------------|
+| `ch_table`           | ClickHouse table name (enables CH output)          |
+| `ch_engine`          | ClickHouse engine clause (default: `MergeTree()`)  |
+| `ch_partition_by`    | `PARTITION BY` expression                          |
+| `ch_order_by`        | `ORDER BY` expression (**required** for CH tables) |
+| `ts_table`           | TimescaleDB table name (enables TS output)         |
+| `ts_time_column`     | Hypertable time column (**required** for TS tables)|
+| `ts_chunk_interval`  | Chunk time interval (informational)                |
+
+### Field options
+
+| Option           | Description                                          |
+|------------------|------------------------------------------------------|
+| `ch_column_type` | Override ClickHouse column type                      |
+| `pg_column_type` | Override PostgreSQL/TimescaleDB column type          |
+| `db_nullable`    | Override nullability (`true`/`false`)                |
+| `db_name`        | Override column name in the output DDL               |
+
+## Proto3 type mapping
+
+| Proto3 type          | ClickHouse   | PostgreSQL        |
+|----------------------|--------------|-------------------|
+| `int32`/`sint32`/`sfixed32` | `Int32` | `INTEGER`    |
+| `int64`/`sint64`/`sfixed64` | `Int64` | `BIGINT`     |
+| `uint32`/`fixed32`   | `UInt32`     | `INTEGER`         |
+| `uint64`/`fixed64`   | `UInt64`     | `BIGINT`          |
+| `float`              | `Float32`    | `REAL`            |
+| `double`             | `Float64`    | `DOUBLE PRECISION`|
+| `bool`               | `Bool`       | `BOOLEAN`         |
+| `string`/`bytes`     | `String`     | `TEXT`            |
+| `google.protobuf.Timestamp` | `DateTime64(3)` | `TIMESTAMPTZ` |
+| `repeated T`         | `Array(T)`   | `T[]`             |
+| `enum`               | `String`     | `TEXT`            |
+
+Nullability defaults to `false` for implicit proto3 fields and `true` for `optional`-qualified fields. Use the `db_nullable` option to override.
+
+## Requirements
+
+- CMake 3.20+
+- C++20 compiler (GCC 11+ or Clang 14+)
+- `libprotobuf` / `libprotoc` (protobuf 3.x)
+- `protoc` on `$PATH`
+
+On Ubuntu/Debian:
+```bash
+apt install protobuf-compiler libprotobuf-dev
+```
+
+## Build
+
+```bash
+cmake -S . -B build
+cmake --build build
+```
+
+The plugin binary is `build/protoc-gen-dbddl`.
+
+## Install
+
+```bash
+cmake --install build --prefix /usr/local
+```
+
+This installs `protoc-gen-dbddl` to `/usr/local/bin`, making it automatically discoverable by `protoc`.
+
+## Running the plugin
+
+```bash
+protoc \
+  --plugin=protoc-gen-dbddl=./build/protoc-gen-dbddl \
+  --dbddl_out=out/ \
+  -I proto/ \
+  proto/example_trade.proto
+```
+
+This produces `out/example_trade.clickhouse.sql` and `out/example_trade.timescaledb.sql`.
+
+## Running tests
+
+```bash
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
+```

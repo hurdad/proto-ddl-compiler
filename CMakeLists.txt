@@ -34,3 +34,38 @@ target_link_libraries(protoc-gen-dbddl
 )
 
 install(TARGETS protoc-gen-dbddl RUNTIME DESTINATION bin)
+
+# --- Unit tests ---
+include(CTest)
+find_package(GTest REQUIRED)
+
+protobuf_generate_cpp(MAPPER_TEST_SRCS MAPPER_TEST_HDRS tests/mapper_test_types.proto)
+
+add_executable(dbddl_tests
+  tests/test_mapper.cpp
+  tests/test_validate.cpp
+  tests/test_renderers.cpp
+  src/mapper.cpp
+  src/validate.cpp
+  src/backends/clickhouse_renderer.cpp
+  src/backends/timescale_renderer.cpp
+  ${DB_OPTIONS_SRCS}
+  ${MAPPER_TEST_SRCS}
+)
+
+target_include_directories(dbddl_tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${Protobuf_INCLUDE_DIRS}
+    ${GTEST_INCLUDE_DIRS}
+)
+
+target_link_libraries(dbddl_tests
+  PRIVATE
+    protobuf::libprotobuf
+    GTest::gtest
+    GTest::gtest_main
+)
+
+add_test(NAME dbddl_tests COMMAND dbddl_tests)

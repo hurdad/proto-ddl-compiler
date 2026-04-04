@@ -29,10 +29,22 @@ std::optional<MappedTypes> MapFieldTypes(const google::protobuf::FieldDescriptor
       mapped = {"Float64", "DOUBLE PRECISION"};
       break;
     case FD::CPPTYPE_STRING:
-      mapped = {"String", "TEXT"};
+      mapped = {"String", field.type() == FD::TYPE_BYTES ? "BYTEA" : "TEXT"};
+      break;
+    case FD::CPPTYPE_UINT32:
+      mapped = {"UInt32", "INTEGER"};
+      break;
+    case FD::CPPTYPE_UINT64:
+      mapped = {"UInt64", "BIGINT"};
+      break;
+    case FD::CPPTYPE_FLOAT:
+      mapped = {"Float32", "REAL"};
       break;
     case FD::CPPTYPE_BOOL:
       mapped = {"Bool", "BOOLEAN"};
+      break;
+    case FD::CPPTYPE_ENUM:
+      mapped = {"String", "TEXT"};
       break;
     case FD::CPPTYPE_MESSAGE:
       if (IsTimestamp(field)) {

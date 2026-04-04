@@ -20,7 +20,11 @@ std::string RenderTimescaleDDL(const std::vector<TableIR>& tables) {
       out << "\n";
     }
     out << ");\n\n";
-    out << "SELECT create_hypertable('" << table.name << "', by_range('" << table.ts_time_column << "'));\n";
+    out << "SELECT create_hypertable('" << table.name << "', by_range('" << table.ts_time_column << "'";
+    if (!table.ts_chunk_interval.empty()) {
+      out << ", INTERVAL '" << table.ts_chunk_interval << "'";
+    }
+    out << "));\n";
 
     if (t + 1 < tables.size()) {
       out << "\n";
