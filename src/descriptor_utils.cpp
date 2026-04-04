@@ -2,7 +2,11 @@
 
 #include <google/protobuf/descriptor.h>
 
+#include <algorithm>
+#include <cctype>
 #include <optional>
+#include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -41,7 +45,35 @@ std::optional<ColumnIR> BuildColumn(const google::protobuf::FieldDescriptor& fie
   return col;
 }
 
-void VisitMessage(const google::protobuf::Descriptor& message, TableExtractionResult* result) {
+void CollectEnumTypes(const google::protobuf::Descriptor& message,
+                      TableExtractionResult* result,
+                      std::set<std::string>* seen) {
+  for (int i = 0; i < message.field_count(); ++i) {
+    const auto* field = message.field(i);
+    if (field->cpp_type() != google::protobuf::FieldDescriptor::CPPTYPE_ENUM) continue;
+    const auto* ed = field->enum_type();
+    if (!seen->insert(ed->full_name()).second) continue;
+
+    std::string pg_type = ed->name();
+    std::transform(pg_type.begin(), pg_type.end(), pg_type.begin(), ::tolower);
+
+    std::ostringstream ddl;
+    ddl << "CREATE TYPE " << pg_type << " AS ENUM (";
+    for (int j = 0; j < ed->value_count(); ++j) {
+      if (j > 0) ddl << ", ";
+      ddl << "'" << ed->value(j)->name() << "'";
+    }
+    ddl << ");";
+    result->pg_enum_types.push_back(ddl.str());
+  }
+  for (int i = 0; i < message.nested_type_count(); ++i) {
+    CollectEnumTypes(*message.nested_type(i), result, seen);
+  }
+}
+
+void VisitMessage(const google::protobuf::Descriptor& message,
+                  TableExtractionResult* result,
+                  std::set<std::string>* seen_enums) {
   const auto& opts = message.options();
   const bool has_ch = opts.HasExtension(dbddl::ch_table);
   const bool has_ts = opts.HasExtension(dbddl::ts_table);
@@ -86,7 +118,7 @@ void VisitMessage(const google::protobuf::Descriptor& message, TableExtractionRe
   }
 
   for (int i = 0; i < message.nested_type_count(); ++i) {
-    VisitMessage(*message.nested_type(i), result);
+    VisitMessage(*message.nested_type(i), result, seen_enums);
   }
 }
 
@@ -94,8 +126,10 @@ void VisitMessage(const google::protobuf::Descriptor& message, TableExtractionRe
 
 TableExtractionResult ExtractTablesFromFile(const google::protobuf::FileDescriptor& file) {
   TableExtractionResult result;
+  std::set<std::string> seen_enums;
   for (int i = 0; i < file.message_type_count(); ++i) {
-    VisitMessage(*file.message_type(i), &result);
+    CollectEnumTypes(*file.message_type(i), &result, &seen_enums);
+    VisitMessage(*file.message_type(i), &result, &seen_enums);
   }
   return result;
 }

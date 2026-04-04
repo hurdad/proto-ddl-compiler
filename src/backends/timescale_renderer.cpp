@@ -2,8 +2,16 @@
 
 #include <sstream>
 
-std::string RenderTimescaleDDL(const std::vector<TableIR>& tables) {
+std::string RenderTimescaleDDL(const std::vector<TableIR>& tables,
+                               const std::vector<std::string>& pg_enum_types) {
   std::ostringstream out;
+
+  for (const auto& ddl : pg_enum_types) {
+    out << ddl << "\n";
+  }
+  if (!pg_enum_types.empty()) {
+    out << "\n";
+  }
 
   for (size_t t = 0; t < tables.size(); ++t) {
     const auto& table = tables[t];

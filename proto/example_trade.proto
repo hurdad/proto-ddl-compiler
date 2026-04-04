@@ -4,6 +4,12 @@ package example;
 
 import "db_options.proto";
 
+enum Side {
+  SIDE_UNKNOWN = 0;
+  SIDE_BUY     = 1;
+  SIDE_SELL    = 2;
+}
+
 message Trade {
   option (dbddl.ch_table) = "trades";
   option (dbddl.ch_partition_by) = "toYYYYMM(timestamp)";
@@ -12,8 +18,9 @@ message Trade {
   option (dbddl.ts_table) = "trades";
   option (dbddl.ts_time_column) = "timestamp";
 
-  int64 timestamp = 1 [(dbddl.ch_column_type) = "DateTime64(3)"];
-  string symbol = 2;
-  double price = 3;
-  int32 size = 4;
+  int64  timestamp = 1 [(dbddl.ch_column_type) = "DateTime64(3)"];
+  string symbol    = 2;
+  double price     = 3;
+  int32  size      = 4;
+  Side   side      = 5;
 }

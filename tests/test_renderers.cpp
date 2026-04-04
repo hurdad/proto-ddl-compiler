@@ -90,6 +90,12 @@ TEST(ClickHouseRendererTest, MultipleTables) {
 
 // --- Timescale renderer ---
 
+// helpers for enum type tests
+const std::vector<std::string> kEnumTypes = {
+    "CREATE TYPE side AS ENUM ('SIDE_UNKNOWN', 'SIDE_BUY', 'SIDE_SELL');",
+};
+
+
 TEST(TimescaleRendererTest, EmptyInput) {
   EXPECT_EQ(RenderTimescaleDDL({}), "");
 }
@@ -119,6 +125,22 @@ TEST(TimescaleRendererTest, NonNullableColumnHasNotNull) {
   auto sql = RenderTimescaleDDL({MakeTradeTable()});
   // ts and symbol are not nullable
   EXPECT_NE(sql.find("ts TIMESTAMPTZ NOT NULL"), std::string::npos);
+}
+
+TEST(TimescaleRendererTest, EnumCreateTypeEmitted) {
+  auto sql = RenderTimescaleDDL({MakeTradeTable()}, kEnumTypes);
+  EXPECT_NE(sql.find("CREATE TYPE side AS ENUM"), std::string::npos);
+  EXPECT_NE(sql.find("'SIDE_BUY'"), std::string::npos);
+}
+
+TEST(TimescaleRendererTest, EnumCreateTypeBeforeTable) {
+  auto sql = RenderTimescaleDDL({MakeTradeTable()}, kEnumTypes);
+  EXPECT_LT(sql.find("CREATE TYPE"), sql.find("CREATE TABLE"));
+}
+
+TEST(TimescaleRendererTest, NoEnumTypesWhenEmpty) {
+  auto sql = RenderTimescaleDDL({MakeTradeTable()});
+  EXPECT_EQ(sql.find("CREATE TYPE"), std::string::npos);
 }
 
 TEST(TimescaleRendererTest, ChunkInterval) {

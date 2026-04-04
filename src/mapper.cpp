@@ -2,6 +2,8 @@
 
 #include <google/protobuf/descriptor.h>
 
+#include <algorithm>
+#include <cctype>
 #include <string>
 
 namespace {
@@ -43,9 +45,12 @@ std::optional<MappedTypes> MapFieldTypes(const google::protobuf::FieldDescriptor
     case FD::CPPTYPE_BOOL:
       mapped = {"Bool", "BOOLEAN"};
       break;
-    case FD::CPPTYPE_ENUM:
-      mapped = {"String", "TEXT"};
+    case FD::CPPTYPE_ENUM: {
+      std::string pg_type = field.enum_type()->name();
+      std::transform(pg_type.begin(), pg_type.end(), pg_type.begin(), ::tolower);
+      mapped = {"LowCardinality(String)", std::move(pg_type)};
       break;
+    }
     case FD::CPPTYPE_MESSAGE:
       if (IsTimestamp(field)) {
         mapped = {"DateTime64(3)", "TIMESTAMPTZ"};

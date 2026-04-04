@@ -85,6 +85,13 @@ TEST(MapperTest, Timestamp) {
   EXPECT_EQ(r->postgres, "TIMESTAMPTZ");
 }
 
+TEST(MapperTest, Enum) {
+  auto r = MapFieldTypes(*F("f_enum"));
+  ASSERT_TRUE(r.has_value());
+  EXPECT_EQ(r->clickhouse, "LowCardinality(String)");
+  EXPECT_EQ(r->postgres, "side");
+}
+
 TEST(MapperTest, RepeatedInt32) {
   auto r = MapFieldTypes(*F("f_repeated_int32"));
   ASSERT_TRUE(r.has_value());

@@ -99,7 +99,7 @@ bool DbddlGenerator::Generate(const google::protobuf::FileDescriptor* file,
   }
 
   if (!extracted.timescale_tables.empty()) {
-    const std::string ts_sql = RenderTimescaleDDL(extracted.timescale_tables);
+    const std::string ts_sql = RenderTimescaleDDL(extracted.timescale_tables, extracted.pg_enum_types);
     if (!WriteFile(context, base + ".timescaledb.sql", ts_sql, error)) {
       return false;
     }

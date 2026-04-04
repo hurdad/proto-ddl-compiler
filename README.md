@@ -11,6 +11,12 @@ syntax = "proto3";
 
 import "db_options.proto";
 
+enum Side {
+  SIDE_UNKNOWN = 0;
+  SIDE_BUY     = 1;
+  SIDE_SELL    = 2;
+}
+
 message Trade {
   option (dbddl.ch_table)        = "trades";
   option (dbddl.ch_partition_by) = "toYYYYMM(timestamp)";
@@ -23,6 +29,7 @@ message Trade {
   string symbol    = 2;
   double price     = 3;
   int32  size      = 4;
+  Side   side      = 5;
 }
 ```
 
@@ -35,7 +42,8 @@ CREATE TABLE trades
   timestamp DateTime64(3),
   symbol String,
   price Float64,
-  size Int32
+  size Int32,
+  side LowCardinality(String)
 )
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
@@ -44,11 +52,14 @@ ORDER BY (timestamp);
 
 **`example_trade.timescaledb.sql`**
 ```sql
+CREATE TYPE side AS ENUM ('SIDE_UNKNOWN', 'SIDE_BUY', 'SIDE_SELL');
+
 CREATE TABLE trades (
   timestamp TIMESTAMPTZ NOT NULL,
   symbol TEXT NOT NULL,
   price DOUBLE PRECISION NOT NULL,
-  size INTEGER NOT NULL
+  size INTEGER NOT NULL,
+  side side NOT NULL
 );
 
 SELECT create_hypertable('trades', by_range('timestamp'));
@@ -91,7 +102,7 @@ SELECT create_hypertable('trades', by_range('timestamp'));
 | `string`/`bytes`     | `String`     | `TEXT`            |
 | `google.protobuf.Timestamp` | `DateTime64(3)` | `TIMESTAMPTZ` |
 | `repeated T`         | `Array(T)`   | `T[]`             |
-| `enum`               | `String`     | `TEXT`            |
+| `enum`               | `LowCardinality(String)` | native `ENUM` type |
 
 Nullability defaults to `false` for implicit proto3 fields and `true` for `optional`-qualified fields. Use the `db_nullable` option to override.
 

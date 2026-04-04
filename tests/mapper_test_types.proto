@@ -4,6 +4,12 @@ package test;
 
 import "google/protobuf/timestamp.proto";
 
+enum Side {
+  SIDE_UNKNOWN = 0;
+  SIDE_BUY     = 1;
+  SIDE_SELL    = 2;
+}
+
 message AllTypes {
   int32  f_int32     = 1;
   int64  f_int64     = 2;
@@ -16,4 +22,5 @@ message AllTypes {
   bytes  f_bytes     = 9;
   google.protobuf.Timestamp f_timestamp = 10;
   repeated int32 f_repeated_int32 = 11;
+  Side   f_enum      = 12;
 }
