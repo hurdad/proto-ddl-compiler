@@ -26,12 +26,15 @@ message Trade {
   option (dbddl.ts_table)        = "trades";
   option (dbddl.ts_time_column)  = "timestamp";
 
-  google.protobuf.Timestamp timestamp = 1 [(dbddl.db_nullable) = false];
-  string     symbol    = 2;
-  double     price     = 3;
-  int32      size      = 4;
-  Side       side      = 5;
-  dbddl.UUID trade_id  = 6;
+  google.protobuf.Timestamp timestamp = 1 [
+    (dbddl.db_nullable) = false,
+    (dbddl.db_comment)  = "UTC event timestamp"
+  ];
+  string     symbol   = 2 [(dbddl.db_comment) = "Instrument symbol"];
+  double     price    = 3 [(dbddl.db_comment) = "Execution price"];
+  int32      size     = 4 [(dbddl.db_comment) = "Quantity traded"];
+  Side       side     = 5 [(dbddl.db_comment) = "Aggressor side"];
+  dbddl.UUID trade_id = 6 [(dbddl.db_comment) = "Exchange-assigned trade ID"];
 }
 ```
 
@@ -41,12 +44,12 @@ Given the example above, the plugin produces:
 ```sql
 CREATE TABLE trades
 (
-  timestamp DateTime64(3),
-  symbol String,
-  price Float64,
-  size Int32,
-  side LowCardinality(String),
-  trade_id Nullable(UUID)
+  timestamp DateTime64(3) COMMENT 'UTC event timestamp',
+  symbol String COMMENT 'Instrument symbol',
+  price Float64 COMMENT 'Execution price',
+  size Int32 COMMENT 'Quantity traded',
+  side LowCardinality(String) COMMENT 'Aggressor side',
+  trade_id Nullable(UUID) COMMENT 'Exchange-assigned trade ID'
 )
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
@@ -58,13 +61,19 @@ ORDER BY (timestamp);
 CREATE TYPE side AS ENUM ('SIDE_UNKNOWN', 'SIDE_BUY', 'SIDE_SELL');
 
 CREATE TABLE trades (
-  timestamp BIGINT NOT NULL,
+  timestamp TIMESTAMPTZ NOT NULL,
   symbol TEXT NOT NULL,
   price DOUBLE PRECISION NOT NULL,
   size INTEGER NOT NULL,
   side side NOT NULL,
   trade_id UUID
 );
+COMMENT ON COLUMN trades.timestamp IS 'UTC event timestamp';
+COMMENT ON COLUMN trades.symbol IS 'Instrument symbol';
+COMMENT ON COLUMN trades.price IS 'Execution price';
+COMMENT ON COLUMN trades.size IS 'Quantity traded';
+COMMENT ON COLUMN trades.side IS 'Aggressor side';
+COMMENT ON COLUMN trades.trade_id IS 'Exchange-assigned trade ID';
 
 SELECT create_hypertable('trades', by_range('timestamp'));
 ```
