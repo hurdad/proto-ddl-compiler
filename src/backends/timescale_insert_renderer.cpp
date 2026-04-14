@@ -92,16 +92,27 @@ void EmitTupleElem(std::ostream& src, const ColumnIR& col,
   if (col.field_kind == FieldKind::kTimestamp) {
     // Format as "YYYY-MM-DD HH:MM:SS.nnnnnnnnn+00" for pqxx TIMESTAMPTZ.
     const std::string acc = row + "." + col.embed_accessor_prefix + col.proto_field_name + "()";
-    src << "[&]() -> std::string {\n"
-        << "          char _buf[30], _out[42];\n"
-        << "          time_t _sec = static_cast<time_t>(" << acc << ".seconds());\n"
-        << "          struct tm _tm{};\n"
-        << "          gmtime_r(&_sec, &_tm);\n"
-        << "          strftime(_buf, sizeof(_buf), \"%Y-%m-%d %H:%M:%S\", &_tm);\n"
-        << "          snprintf(_out, sizeof(_out), \"%s.%09d+00\", _buf, "
-        << acc << ".nanos());\n"
-        << "          return _out;\n"
-        << "        }()";
+    auto emit_ts_lambda = [&]() {
+      src << "[&]() -> std::string {\n"
+          << "          char _buf[32], _out[48];\n"
+          << "          time_t _sec = static_cast<time_t>(" << acc << ".seconds());\n"
+          << "          struct tm _tm{};\n"
+          << "          gmtime_r(&_sec, &_tm);\n"
+          << "          strftime(_buf, sizeof(_buf), \"%Y-%m-%d %H:%M:%S\", &_tm);\n"
+          << "          snprintf(_out, sizeof(_out), \"%s.%09d+00\", _buf, "
+          << acc << ".nanos());\n"
+          << "          return _out;\n"
+          << "        }()";
+    };
+    if (col.has_proto_presence && col.nullable) {
+      src << HasAcc(col, row) << "\n"
+          << "            ? std::optional<std::string>{";
+      emit_ts_lambda();
+      src << "}\n"
+          << "            : std::optional<std::string>{}";
+    } else {
+      emit_ts_lambda();
+    }
     return;
   }
 

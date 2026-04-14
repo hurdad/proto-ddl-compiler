@@ -525,3 +525,21 @@ TEST(TimescaleRendererTest, TableNameSingleQuoteEscapedInRetentionPolicy) {
   auto sql = RenderTimescaleDDL({t});
   EXPECT_NE(sql.find("add_retention_policy('it''s_table'"), std::string::npos);
 }
+
+// --- ClickHouse nullable enum DDL: LowCardinality(Nullable(T)) ---
+
+TEST(ClickHouseRendererTest, NullableEnumUsesLowCardinalityNullable) {
+  TableIR t = MakeTradeTable();
+  t.columns.push_back(MakeCol("opt_side", "LowCardinality(String)", "side",
+                               /*nullable=*/true));
+  auto sql = RenderClickHouseDDL({t});
+  EXPECT_NE(sql.find("LowCardinality(Nullable(String))"), std::string::npos);
+  EXPECT_EQ(sql.find("Nullable(LowCardinality"), std::string::npos);
+}
+
+TEST(ClickHouseRendererTest, NonNullableLowCardinalityUnchanged) {
+  auto sql = RenderClickHouseDDL({MakeTradeTable()});
+  // side is non-nullable LowCardinality — must not be wrapped.
+  EXPECT_EQ(sql.find("Nullable(LowCardinality"), std::string::npos);
+  EXPECT_EQ(sql.find("LowCardinality(Nullable"), std::string::npos);
+}

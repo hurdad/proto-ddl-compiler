@@ -353,3 +353,53 @@ TEST(PGInsertTest, RepeatedStringArrayDoubleQuotesAndEscapes) {
   // Double-quote escape: the generated code emits arr += "\\\";
   EXPECT_NE(f.source.find("else if (_c == '\"')"), std::string::npos);
 }
+
+// --- Nullable Timestamp in TimescaleDB insert (must use std::optional, not bare string) ---
+
+TEST(PGInsertTest, NullableTimestampUsesOptional) {
+  TableIR t = MakeTradeTable();
+  ColumnIR col;
+  col.name = "optional_ts";
+  col.proto_field_name = "optional_ts";
+  col.field_kind = FieldKind::kTimestamp;
+  col.type_clickhouse = "DateTime64(3)";
+  col.type_postgres = "TIMESTAMPTZ";
+  col.nullable = true;
+  col.has_proto_presence = true;
+  t.columns.push_back(col);
+  auto f = RenderTimescaleInsert({t}, "example_trade");
+  // Must check presence before formatting.
+  EXPECT_NE(f.source.find("has_optional_ts()"), std::string::npos);
+  // Must return std::optional<std::string> — present or absent.
+  EXPECT_NE(f.source.find("std::optional<std::string>{}"), std::string::npos);
+  // The gmtime_r/strftime formatting path must still be present.
+  EXPECT_NE(f.source.find("gmtime_r"), std::string::npos);
+}
+
+TEST(PGInsertTest, NonNullableTimestampNoOptional) {
+  // Non-nullable timestamps must NOT wrap in optional.
+  auto f = RenderTimescaleInsert({MakeTradeTable()}, "example_trade");
+  // timestamp column is not nullable — should not generate optional code for it.
+  // (There's no has_timestamp() call in the output.)
+  EXPECT_EQ(f.source.find("has_timestamp()"), std::string::npos);
+}
+
+// --- ClickHouse nullable enum: LowCardinality(Nullable(String)) ---
+
+TEST(CHInsertTest, NullableEnumUsesLowCardinalityNullable) {
+  TableIR t = MakeTradeTable();
+  ColumnIR col = MakeCol("opt_side", "opt_side", FieldKind::kEnum,
+                          "LowCardinality(String)", "side",
+                          /*nullable=*/true, /*repeated=*/false, "example::Side");
+  col.has_proto_presence = true;
+  t.columns.push_back(col);
+  auto f = RenderClickHouseInsert({t}, "example_trade");
+  // Must use LowCardinality(Nullable(String)) column type, not Nullable(LowCardinality).
+  EXPECT_NE(f.source.find("ColumnLowCardinalityT<clickhouse::ColumnNullableT<clickhouse::ColumnString>>"),
+            std::string::npos);
+  EXPECT_EQ(f.source.find("ColumnNullableT<clickhouse::ColumnLowCardinalityT"), std::string::npos);
+  // Append uses std::optional<std::string>.
+  EXPECT_NE(f.source.find("std::optional<std::string>"), std::string::npos);
+  EXPECT_NE(f.source.find("has_opt_side()"), std::string::npos);
+}
+

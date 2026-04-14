@@ -37,7 +37,16 @@ std::string RenderClickHouseDDL(const std::vector<TableIR>& tables) {
       const auto& col = table.columns[i];
       out << "  " << col.name << " ";
       if (col.nullable && !col.repeated) {
-        out << "Nullable(" << col.type_clickhouse << ")";
+        // ClickHouse forbids Nullable(LowCardinality(T)); the correct form is
+        // LowCardinality(Nullable(T)).  Detect by prefix and invert the wrapping.
+        const auto& ct = col.type_clickhouse;
+        if (ct.size() > 15 && ct.compare(0, 15, "LowCardinality(") == 0 &&
+            ct.back() == ')') {
+          const std::string inner = ct.substr(15, ct.size() - 16);
+          out << "LowCardinality(Nullable(" << inner << "))";
+        } else {
+          out << "Nullable(" << ct << ")";
+        }
       } else {
         out << col.type_clickhouse;
       }

@@ -95,8 +95,12 @@ void EmitColumnDecl(std::ostream& out, const ColumnIR& col) {
     }
     out << "));\n";
   } else if (col.has_proto_presence && col.nullable) {
-    // ColumnNullableT requires the inner column for types with no default ctor.
-    if (col.field_kind == FieldKind::kTimestamp) {
+    // ClickHouse does not allow Nullable(LowCardinality(T)); the correct form is
+    // LowCardinality(Nullable(T)).  Enum columns use ColumnLowCardinalityT<ColumnNullableT<...>>.
+    if (col.field_kind == FieldKind::kEnum) {
+      out << "ColumnLowCardinalityT<clickhouse::ColumnNullableT<clickhouse::ColumnString>>>();\n";
+    } else if (col.field_kind == FieldKind::kTimestamp) {
+      // ColumnNullableT requires the inner column for types with no default ctor.
       out << "ColumnNullableT<clickhouse::ColumnDateTime64>>(std::make_shared<clickhouse::ColumnDateTime64>("
           << ExtractDateTime64Precision(col.type_clickhouse) << "));\n";
     } else {
@@ -156,11 +160,19 @@ void EmitAppend(std::ostream& out, const ColumnIR& col) {
     out << "      " << cvar << "->AppendAsColumn(inner);\n";
     out << "    }\n";
   } else if (col.has_proto_presence && col.nullable) {
-    out << "    if (" << HasAcc(col, "row") << ") {\n";
-    out << "      " << cvar << "->Append(" << ChScalarExpr(col, "row") << ");\n";
-    out << "    } else {\n";
-    out << "      " << cvar << "->Append(std::nullopt);\n";
-    out << "    }\n";
+    if (col.field_kind == FieldKind::kEnum) {
+      // LowCardinality(Nullable(String)) — append std::optional<std::string>.
+      out << "    " << cvar << "->Append(" << HasAcc(col, "row") << "\n";
+      out << "        ? std::optional<std::string>{"
+          << col.enum_cpp_type << "_Name(" << FieldAcc(col, "row") << ")}\n";
+      out << "        : std::optional<std::string>{});\n";
+    } else {
+      out << "    if (" << HasAcc(col, "row") << ") {\n";
+      out << "      " << cvar << "->Append(" << ChScalarExpr(col, "row") << ");\n";
+      out << "    } else {\n";
+      out << "      " << cvar << "->Append(std::nullopt);\n";
+      out << "    }\n";
+    }
   } else {
     out << "    " << cvar << "->Append(" << ChScalarExpr(col, "row") << ");\n";
   }
