@@ -93,7 +93,7 @@ TEST(CHInsertTest, TimestampAppendConvertsSecondsAndNanos) {
 
 TEST(CHInsertTest, EnumColumnUsesLowCardinality) {
   auto f = RenderClickHouseInsert({MakeTradeTable()}, "example_trade");
-  EXPECT_NE(f.source.find("ColumnLowCardinalityT<ColumnString>"), std::string::npos);
+  EXPECT_NE(f.source.find("ColumnLowCardinalityT<clickhouse::ColumnString>"), std::string::npos);
 }
 
 TEST(CHInsertTest, EnumAppendCallsNameFunction) {
@@ -103,7 +103,7 @@ TEST(CHInsertTest, EnumAppendCallsNameFunction) {
 
 TEST(CHInsertTest, NullableColumnUsesNullableT) {
   auto f = RenderClickHouseInsert({MakeTradeTable()}, "example_trade");
-  EXPECT_NE(f.source.find("ColumnNullableT<ColumnFloat64>"), std::string::npos);
+  EXPECT_NE(f.source.find("ColumnNullableT<clickhouse::ColumnFloat64>"), std::string::npos);
 }
 
 TEST(CHInsertTest, NullableAppendChecksHasField) {
@@ -156,7 +156,7 @@ TEST(CHInsertTest, RepeatedColumnUsesArrayT) {
                                "Array(String)", "TEXT[]",
                                /*nullable=*/false, /*repeated=*/true));
   auto f = RenderClickHouseInsert({t}, "example_trade");
-  EXPECT_NE(f.source.find("ColumnArrayT<ColumnString>"), std::string::npos);
+  EXPECT_NE(f.source.find("ColumnArrayT<clickhouse::ColumnString>"), std::string::npos);
   EXPECT_NE(f.source.find("AppendAsColumn"), std::string::npos);
   EXPECT_NE(f.source.find("tags_size()"), std::string::npos);
 }
@@ -202,10 +202,12 @@ TEST(PGInsertTest, SourceListsAllColumns) {
   EXPECT_NE(f.source.find("\"side\""),      std::string::npos);
 }
 
-TEST(PGInsertTest, TimestampUsesChrono) {
+TEST(PGInsertTest, TimestampFormatsAsString) {
   auto f = RenderTimescaleInsert({MakeTradeTable()}, "example_trade");
-  EXPECT_NE(f.source.find("system_clock::from_time_t"), std::string::npos);
-  EXPECT_NE(f.source.find("nanoseconds("), std::string::npos);
+  EXPECT_NE(f.source.find("gmtime_r"), std::string::npos);
+  EXPECT_NE(f.source.find("strftime"), std::string::npos);
+  EXPECT_NE(f.source.find(".seconds()"), std::string::npos);
+  EXPECT_NE(f.source.find(".nanos()"), std::string::npos);
 }
 
 TEST(PGInsertTest, EnumCallsNameFunction) {

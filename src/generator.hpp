@@ -8,4 +8,8 @@ class DbddlGenerator final : public google::protobuf::compiler::CodeGenerator {
                 const std::string& parameter,
                 google::protobuf::compiler::GeneratorContext* context,
                 std::string* error) const override;
+
+  uint64_t GetSupportedFeatures() const override {
+    return FEATURE_PROTO3_OPTIONAL;
+  }
 };

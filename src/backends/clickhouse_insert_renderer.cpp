@@ -37,7 +37,7 @@ std::string ChBaseType(const ColumnIR& col) {
     case FieldKind::kBool:      return "ColumnUInt8";
     case FieldKind::kString:
     case FieldKind::kBytes:     return "ColumnString";
-    case FieldKind::kEnum:      return "ColumnLowCardinalityT<ColumnString>";
+    case FieldKind::kEnum:      return "ColumnLowCardinalityT<clickhouse::ColumnString>";
     case FieldKind::kTimestamp: return "ColumnDateTime64";
     case FieldKind::kUUID:      return "ColumnUUID";
     default:                    return "";
@@ -76,9 +76,9 @@ void EmitColumnDecl(std::ostream& out, const ColumnIR& col) {
 
   out << "  auto col_" << col.name << " = std::make_shared<clickhouse::";
   if (col.repeated) {
-    out << "ColumnArrayT<" << base << ">>();\n";
+    out << "ColumnArrayT<clickhouse::" << base << ">>();\n";
   } else if (col.nullable) {
-    out << "ColumnNullableT<" << base << ">>();\n";
+    out << "ColumnNullableT<clickhouse::" << base << ">>();\n";
   } else if (col.field_kind == FieldKind::kTimestamp) {
     out << base << ">(" << ExtractDateTime64Precision(col.type_clickhouse) << ");\n";
   } else {

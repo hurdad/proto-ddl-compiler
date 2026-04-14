@@ -1,0 +1,173 @@
+// Kitchen-sink proto exercising every supported type, field option, and
+// message option. Used to verify that the plugin generates valid DDL and
+// compilable C++ insert code across the full feature surface.
+syntax = "proto3";
+
+package kitchen;
+
+import "db_options.proto";
+import "google/protobuf/timestamp.proto";
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Status {
+  STATUS_UNKNOWN  = 0;
+  STATUS_ACTIVE   = 1;
+  STATUS_INACTIVE = 2;
+}
+
+enum Priority {
+  PRIORITY_UNKNOWN = 0;
+  PRIORITY_LOW     = 1;
+  PRIORITY_MEDIUM  = 2;
+  PRIORITY_HIGH    = 3;
+}
+
+// ---------------------------------------------------------------------------
+// AllScalars — one message per supported scalar kind + every field option.
+// Table options: full ClickHouse + TimescaleDB option set.
+// ---------------------------------------------------------------------------
+message AllScalars {
+  // ClickHouse table options.
+  option (dbddl.ch_table)        = "all_scalars";
+  option (dbddl.ch_engine)       = "MergeTree()";
+  option (dbddl.ch_partition_by) = "toYYYYMM(created_at)";
+  option (dbddl.ch_order_by)     = "created_at, id";
+  option (dbddl.ch_ttl)          = "created_at + INTERVAL 1 YEAR";
+  option (dbddl.ch_sample_by)    = "id";
+  option (dbddl.ch_settings)     = "index_granularity = 8192";
+
+  // TimescaleDB table options.
+  option (dbddl.ts_table)              = "all_scalars";
+  option (dbddl.ts_time_column)        = "created_at";
+  option (dbddl.ts_chunk_interval)     = "7 days";
+  option (dbddl.ts_compress_after)     = "30 days";
+  option (dbddl.ts_compress_segmentby) = "category";
+  option (dbddl.ts_compress_orderby)   = "created_at DESC";
+  option (dbddl.ts_retention)          = "1 year";
+
+  // --- Integer types ---
+  int32    id          = 1  [(dbddl.db_comment) = "Row identifier",
+                             (dbddl.db_index)   = true];
+  int64    big_int     = 2  [(dbddl.db_comment) = "64-bit signed integer",
+                             (dbddl.ch_codec)   = "Delta, LZ4"];
+  uint32   uint_val    = 3  [(dbddl.db_comment) = "32-bit unsigned integer"];
+  uint64   ubig_val    = 4  [(dbddl.db_comment) = "64-bit unsigned integer"];
+  sint32   sint_val    = 5  [(dbddl.db_comment) = "ZigZag-encoded int32"];
+  sint64   sbig_val    = 6  [(dbddl.db_comment) = "ZigZag-encoded int64"];
+  fixed32  fix32_val   = 7  [(dbddl.db_comment) = "Fixed-width uint32"];
+  fixed64  fix64_val   = 8  [(dbddl.db_comment) = "Fixed-width uint64"];
+  sfixed32 sfix32_val  = 9  [(dbddl.db_comment) = "Fixed-width int32"];
+  sfixed64 sfix64_val  = 10 [(dbddl.db_comment) = "Fixed-width int64"];
+
+  // --- Floating-point ---
+  float    float_val   = 11 [(dbddl.db_comment) = "Single-precision float"];
+  double   double_val  = 12 [(dbddl.db_comment) = "Double-precision float",
+                              (dbddl.db_default) = "0.0"];
+
+  // --- Boolean ---
+  bool     flag        = 13 [(dbddl.db_comment) = "Boolean flag"];
+
+  // --- String and bytes ---
+  string   str_val     = 14 [(dbddl.db_comment) = "UTF-8 string",
+                              (dbddl.ch_codec)   = "ZSTD(1)"];
+  bytes    bytes_val   = 15 [(dbddl.db_comment) = "Raw bytes"];
+
+  // --- Timestamp (maps to DateTime64(3) / TIMESTAMPTZ) ---
+  google.protobuf.Timestamp created_at = 16 [
+    (dbddl.db_nullable) = false,
+    (dbddl.db_comment)  = "Creation timestamp"
+  ];
+
+  // --- UUID via message type (nullable — message fields have presence) ---
+  dbddl.UUID uuid_msg  = 17 [(dbddl.db_comment) = "UUID via dbddl.UUID message"];
+
+  // --- UUID via bytes + db_uuid annotation (NOT NULL) ---
+  bytes uuid_bytes = 18 [
+    (dbddl.db_uuid)    = true,
+    (dbddl.db_comment) = "UUID via bytes field"
+  ];
+
+  // --- Enum fields ---
+  Status status = 19 [(dbddl.db_comment) = "Row status"];
+
+  // --- Nullable (optional) scalars ---
+  optional int32    nullable_int    = 20 [(dbddl.db_comment) = "Nullable int32"];
+  optional int64    nullable_int64  = 21 [(dbddl.db_comment) = "Nullable int64"];
+  optional double   nullable_double = 22 [(dbddl.db_comment) = "Nullable double"];
+  optional bool     nullable_bool   = 23 [(dbddl.db_comment) = "Nullable bool"];
+  optional string   nullable_str    = 24 [(dbddl.db_comment) = "Nullable string"];
+  optional Status   nullable_status = 25 [(dbddl.db_comment) = "Nullable enum"];
+
+  // --- Repeated (array) fields ---
+  repeated string   tags      = 26 [(dbddl.db_comment) = "String array"];
+  repeated int32    scores    = 27 [(dbddl.db_comment) = "Int32 array"];
+  repeated double   readings  = 28 [(dbddl.db_comment) = "Double array"];
+  repeated bool     flags     = 29 [(dbddl.db_comment) = "Bool array"];
+  repeated Status   statuses  = 30 [(dbddl.db_comment) = "Enum array"];
+
+  // --- Type overrides + name override ---
+  bytes ip_addr = 31 [
+    (dbddl.ch_column_type) = "IPv4",
+    (dbddl.pg_column_type) = "INET",
+    (dbddl.db_name)        = "ip_address",
+    (dbddl.db_comment)     = "IP address"
+  ];
+
+  // --- Default + codec + skip index ---
+  int64 price_micros = 32 [
+    (dbddl.db_default)                = "0",
+    (dbddl.db_comment)                = "Price in microdollars",
+    (dbddl.ch_codec)                  = "Delta, LZ4",
+    (dbddl.db_index)                  = true,
+    (dbddl.ch_skip_index_type)        = "minmax",
+    (dbddl.ch_skip_index_granularity) = 4
+  ];
+
+  // --- PG index method override ---
+  string category = 33 [
+    (dbddl.db_index)       = true,
+    (dbddl.pg_index_using) = "hash",
+    (dbddl.db_comment)     = "Item category"
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// WithAutoPk — exercises db_auto_pk on a simple event-log message.
+// ---------------------------------------------------------------------------
+message WithAutoPk {
+  option (dbddl.ch_table)    = "events";
+  option (dbddl.ch_order_by) = "event_time";
+  option (dbddl.db_auto_pk)  = "event_id";
+
+  option (dbddl.ts_table)       = "events";
+  option (dbddl.ts_time_column) = "event_time";
+
+  google.protobuf.Timestamp event_time = 1 [
+    (dbddl.db_nullable) = false,
+    (dbddl.db_comment)  = "Event timestamp"
+  ];
+  string   message  = 2 [(dbddl.db_comment) = "Event message"];
+  Priority priority = 3 [(dbddl.db_comment) = "Event priority"];
+}
+
+// ---------------------------------------------------------------------------
+// WithUuidPk — exercises db_uuid_pk with an optional nullable field.
+// ---------------------------------------------------------------------------
+message WithUuidPk {
+  option (dbddl.ch_table)    = "sessions";
+  option (dbddl.ch_order_by) = "started_at";
+  option (dbddl.db_uuid_pk)  = true;
+
+  option (dbddl.ts_table)       = "sessions";
+  option (dbddl.ts_time_column) = "started_at";
+
+  google.protobuf.Timestamp started_at = 1 [
+    (dbddl.db_nullable) = false,
+    (dbddl.db_comment)  = "Session start time"
+  ];
+  string          user_id      = 2 [(dbddl.db_comment) = "User identifier"];
+  optional int32  duration_sec = 3 [(dbddl.db_comment) = "Session duration in seconds"];
+}
