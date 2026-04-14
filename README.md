@@ -151,7 +151,7 @@ Nullability defaults to `false` for implicit proto3 fields and `true` for `optio
 
 On Ubuntu/Debian:
 ```bash
-apt install protobuf-compiler libprotobuf-dev libpqxx-dev
+apt install protobuf-compiler libprotobuf-dev libprotoc-dev libpqxx-dev
 ```
 
 `clickhouse-cpp` is bundled as a git submodule (`third_party/clickhouse-cpp`) and built automatically if not found on the system.

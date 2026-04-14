@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Protobuf REQUIRED)
+find_package(absl QUIET)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PQXX REQUIRED libpqxx)
 
@@ -52,6 +53,13 @@ target_link_libraries(protoc-gen-dbddl
   PRIVATE
     protobuf::libprotobuf
     protobuf::libprotoc
+    $<$<TARGET_EXISTS:absl::log_internal_check_op>:
+      absl::log_internal_check_op
+      absl::log_internal_message
+      absl::strings
+      absl::status
+      absl::statusor
+    >
 )
 
 install(TARGETS protoc-gen-dbddl RUNTIME DESTINATION bin)
