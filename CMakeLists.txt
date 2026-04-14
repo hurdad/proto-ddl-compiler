@@ -9,9 +9,22 @@ find_package(Protobuf REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PQXX REQUIRED libpqxx)
 
-# clickhouse-cpp (third-party submodule)
-set(WITH_OPENSSL OFF CACHE BOOL "" FORCE)
-add_subdirectory(third_party/clickhouse-cpp EXCLUDE_FROM_ALL)
+# clickhouse-cpp — prefer a system install, fall back to the submodule.
+find_library(CLICKHOUSE_CPP_SYSTEM_LIB  NAMES clickhouse-cpp-lib clickhouse-cpp)
+find_path   (CLICKHOUSE_CPP_SYSTEM_INCLUDE clickhouse/client.h)
+
+if(CLICKHOUSE_CPP_SYSTEM_LIB AND CLICKHOUSE_CPP_SYSTEM_INCLUDE)
+  message(STATUS "Using system clickhouse-cpp: ${CLICKHOUSE_CPP_SYSTEM_LIB}")
+  add_library(clickhouse-cpp-lib UNKNOWN IMPORTED GLOBAL)
+  set_target_properties(clickhouse-cpp-lib PROPERTIES
+    IMPORTED_LOCATION             "${CLICKHOUSE_CPP_SYSTEM_LIB}"
+    INTERFACE_INCLUDE_DIRECTORIES "${CLICKHOUSE_CPP_SYSTEM_INCLUDE}"
+  )
+else()
+  message(STATUS "clickhouse-cpp not found on system, using third_party/clickhouse-cpp")
+  set(WITH_OPENSSL OFF CACHE BOOL "" FORCE)
+  add_subdirectory(third_party/clickhouse-cpp EXCLUDE_FROM_ALL)
+endif()
 
 protobuf_generate_cpp(DB_OPTIONS_SRCS DB_OPTIONS_HDRS proto/db_options.proto)
 
