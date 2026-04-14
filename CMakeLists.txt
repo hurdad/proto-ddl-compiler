@@ -36,6 +36,8 @@ target_link_libraries(protoc-gen-dbddl
 )
 
 install(TARGETS protoc-gen-dbddl RUNTIME DESTINATION bin)
+install(FILES proto/db_options.proto
+        DESTINATION share/proto-ddl-compiler/proto)
 
 # --- Unit tests ---
 include(CTest)

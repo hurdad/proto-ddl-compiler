@@ -133,7 +133,19 @@ The plugin binary is `build/protoc-gen-dbddl`.
 cmake --install build --prefix /usr/local
 ```
 
-This installs `protoc-gen-dbddl` to `/usr/local/bin`, making it automatically discoverable by `protoc`.
+This installs:
+- `protoc-gen-dbddl` to `/usr/local/bin` (automatically discoverable by `protoc`)
+- `db_options.proto` to `/usr/local/share/proto-ddl-compiler/proto/`
+
+After installing, reference the proto file via `protoc`'s `-I` flag:
+
+```bash
+protoc \
+  --dbddl_out=out/ \
+  -I /usr/local/share/proto-ddl-compiler/proto \
+  -I proto/ \
+  proto/example_trade.proto
+```
 
 ## Running the plugin
 
