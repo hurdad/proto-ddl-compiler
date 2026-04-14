@@ -100,6 +100,13 @@ target_link_libraries(dbddl_tests
     protobuf::libprotobuf
     GTest::gtest
     GTest::gtest_main
+    $<$<TARGET_EXISTS:absl::log_internal_check_op>:
+      absl::log_internal_check_op
+      absl::log_internal_message
+      absl::strings
+      absl::status
+      absl::statusor
+    >
 )
 
 add_test(NAME dbddl_tests COMMAND dbddl_tests)
@@ -164,4 +171,11 @@ target_link_libraries(generated_inserts
     clickhouse-cpp-lib
     ${PQXX_LIBRARIES}
     protobuf::libprotobuf
+    $<$<TARGET_EXISTS:absl::log_internal_check_op>:
+      absl::log_internal_check_op
+      absl::log_internal_message
+      absl::strings
+      absl::status
+      absl::statusor
+    >
 )
