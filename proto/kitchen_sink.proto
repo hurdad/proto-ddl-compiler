@@ -132,6 +132,107 @@ message AllScalars {
     (dbddl.pg_index_using) = "hash",
     (dbddl.db_comment)     = "Item category"
   ];
+
+  // --- Nullable Timestamp (message field, presence by default → nullable) ---
+  google.protobuf.Timestamp optional_ts = 34 [
+    (dbddl.db_comment) = "Nullable timestamp — no db_nullable override"
+  ];
+
+  // --- Nullable UUID via bytes + db_uuid (optional keyword gives presence) ---
+  optional bytes nullable_uuid_bytes = 35 [
+    (dbddl.db_uuid)    = true,
+    (dbddl.db_comment) = "Nullable UUID via optional bytes field"
+  ];
+
+  // --- db_nullable = false on an optional scalar (force NOT NULL) ---
+  optional int32 forced_not_null = 36 [
+    (dbddl.db_nullable) = false,
+    (dbddl.db_comment)  = "Optional scalar forced NOT NULL via db_nullable=false"
+  ];
+
+  // --- Repeated bytes ---
+  repeated bytes raw_chunks = 37 [(dbddl.db_comment) = "Raw byte blobs"];
+}
+
+// ---------------------------------------------------------------------------
+// GeoPoint — embed target (no table annotations).  Used by WithEmbed below.
+// ---------------------------------------------------------------------------
+message GeoPoint {
+  double lat   = 1 [(dbddl.db_comment) = "Latitude"];
+  double lon   = 2 [(dbddl.db_comment) = "Longitude"];
+  string label = 3 [(dbddl.db_comment) = "Location label"];
+}
+
+// ---------------------------------------------------------------------------
+// WithEmbed — exercises db_embed_prefix (flatten nested message into parent).
+// GeoPoint fields appear as loc_lat, loc_lon, loc_label in both backends.
+// ---------------------------------------------------------------------------
+message WithEmbed {
+  option (dbddl.ch_table)       = "positioned_events";
+  option (dbddl.ch_order_by)    = "ts";
+  option (dbddl.ts_table)       = "positioned_events";
+  option (dbddl.ts_time_column) = "ts";
+
+  google.protobuf.Timestamp ts   = 1 [(dbddl.db_nullable) = false,
+                                       (dbddl.db_comment)  = "Event timestamp"];
+  string                    name = 2 [(dbddl.db_comment) = "Event name"];
+  GeoPoint                  loc  = 3 [(dbddl.db_embed_prefix) = "loc"];
+}
+
+// ---------------------------------------------------------------------------
+// ChOnly — annotated for ClickHouse only (no ts_table).  Exercises the code
+// path that produces only .clickhouse.sql / .ch_insert.{h,cc} output.
+// ---------------------------------------------------------------------------
+message ChOnly {
+  option (dbddl.ch_table)    = "ch_metrics";
+  option (dbddl.ch_order_by) = "recorded_at";
+
+  google.protobuf.Timestamp recorded_at = 1 [
+    (dbddl.db_nullable) = false,
+    (dbddl.db_comment)  = "Measurement timestamp"
+  ];
+  string   host  = 2 [(dbddl.db_comment) = "Source host"];
+  double   value = 3 [(dbddl.db_comment) = "Metric value"];
+}
+
+// ---------------------------------------------------------------------------
+// TsOnly — annotated for TimescaleDB only (no ch_table).  Exercises the code
+// path that produces only .timescaledb.sql / .pg_insert.{h,cc} output.
+// ---------------------------------------------------------------------------
+message TsOnly {
+  option (dbddl.ts_table)       = "ts_metrics";
+  option (dbddl.ts_time_column) = "measured_at";
+
+  google.protobuf.Timestamp measured_at = 1 [
+    (dbddl.db_nullable) = false,
+    (dbddl.db_comment)  = "Measurement timestamp"
+  ];
+  string   host  = 2 [(dbddl.db_comment) = "Source host"];
+  double   value = 3 [(dbddl.db_comment) = "Metric value"];
+}
+
+// ---------------------------------------------------------------------------
+// WithNesting — exercises VisitMessage recursion into nested type definitions.
+// Both the outer message and the nested Inner message produce their own tables.
+// ---------------------------------------------------------------------------
+message WithNesting {
+  option (dbddl.ch_table)       = "nesting_outer";
+  option (dbddl.ch_order_by)    = "ts";
+  option (dbddl.ts_table)       = "nesting_outer";
+  option (dbddl.ts_time_column) = "ts";
+
+  google.protobuf.Timestamp ts    = 1 [(dbddl.db_nullable) = false];
+  string                    label = 2;
+
+  message Inner {
+    option (dbddl.ch_table)       = "nesting_inner";
+    option (dbddl.ch_order_by)    = "when";
+    option (dbddl.ts_table)       = "nesting_inner";
+    option (dbddl.ts_time_column) = "when";
+
+    google.protobuf.Timestamp when  = 1 [(dbddl.db_nullable) = false];
+    int32                     count = 2;
+  }
 }
 
 // ---------------------------------------------------------------------------

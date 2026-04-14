@@ -100,6 +100,7 @@ std::optional<ColumnIR> BuildColumn(const google::protobuf::FieldDescriptor& fie
       : (field.has_presence() && !field.is_required());
 
   col.proto_field_name = field.name();
+  col.has_proto_presence = field.has_presence();
   col.field_kind = ToFieldKind(field);
   if (col.field_kind == FieldKind::kEnum) {
     const auto* ed = field.enum_type();
@@ -141,6 +142,42 @@ std::optional<ColumnIR> BuildColumn(const google::protobuf::FieldDescriptor& fie
       ? field.options().GetExtension(dbddl::db_comment) : "";
 
   return col;
+}
+
+// Recursively expand a message's fields into ColumnIRs, applying col_prefix
+// to column names and acc_prefix to proto accessor chains.
+// e.g. col_prefix="loc", acc_prefix="loc()." produces col.name="loc_lat",
+// col.embed_accessor_prefix="loc()." for a `double lat` sub-field.
+std::vector<ColumnIR> BuildEmbeddedColumns(
+    const google::protobuf::Descriptor& msg,
+    const std::string& col_prefix,
+    const std::string& acc_prefix,
+    std::vector<std::string>* errors) {
+  std::vector<ColumnIR> cols;
+  for (int i = 0; i < msg.field_count(); ++i) {
+    const auto* field = msg.field(i);
+
+    // Nested embed-within-embed.
+    if (field->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE &&
+        !field->is_repeated() &&
+        field->options().HasExtension(dbddl::db_embed_prefix)) {
+      const auto& inner_name = field->message_type()->full_name();
+      if (inner_name != "google.protobuf.Timestamp" && inner_name != "dbddl.UUID") {
+        const std::string sub_col = col_prefix + "_" + field->options().GetExtension(dbddl::db_embed_prefix);
+        const std::string sub_acc = acc_prefix + field->name() + "().";
+        auto sub = BuildEmbeddedColumns(*field->message_type(), sub_col, sub_acc, errors);
+        for (auto& c : sub) cols.push_back(std::move(c));
+        continue;
+      }
+    }
+
+    auto col = BuildColumn(*field, errors);
+    if (!col.has_value()) continue;
+    col->name = col_prefix + "_" + col->name;
+    col->embed_accessor_prefix = acc_prefix;
+    cols.push_back(std::move(*col));
+  }
+  return cols;
 }
 
 void VisitMessage(const google::protobuf::Descriptor& message,
@@ -209,7 +246,24 @@ void VisitMessage(const google::protobuf::Descriptor& message,
 
     base.columns.reserve(static_cast<size_t>(message.field_count()));
     for (int i = 0; i < message.field_count(); ++i) {
-      auto col = BuildColumn(*message.field(i), &result->errors);
+      const auto* field = message.field(i);
+
+      // db_embed_prefix: flatten sub-message fields into this table.
+      if (field->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE &&
+          !field->is_repeated() &&
+          field->options().HasExtension(dbddl::db_embed_prefix)) {
+        const auto& msg_name = field->message_type()->full_name();
+        // Timestamp and UUID are first-class scalar types; don't try to expand them.
+        if (msg_name != "google.protobuf.Timestamp" && msg_name != "dbddl.UUID") {
+          const std::string prefix = field->options().GetExtension(dbddl::db_embed_prefix);
+          const std::string acc    = field->name() + "().";
+          auto embedded = BuildEmbeddedColumns(*field->message_type(), prefix, acc, &result->errors);
+          for (auto& c : embedded) base.columns.push_back(std::move(c));
+          continue;
+        }
+      }
+
+      auto col = BuildColumn(*field, &result->errors);
       if (col.has_value()) {
         base.columns.push_back(std::move(*col));
       }

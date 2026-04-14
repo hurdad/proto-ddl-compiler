@@ -21,6 +21,7 @@ ColumnIR MakeCol(const std::string& name,
   c.type_clickhouse = ch_type;
   c.type_postgres = pg_type;
   c.nullable = nullable;
+  c.has_proto_presence = nullable;  // nullable test columns have proto presence (the common case)
   c.repeated = repeated;
   c.enum_cpp_type = enum_cpp_type;
   return c;
@@ -262,6 +263,79 @@ TEST(PGInsertTest, RepeatedColumnBuildsArrayLiteral) {
   auto f = RenderTimescaleInsert({t}, "example_trade");
   EXPECT_NE(f.source.find("tags_size()"), std::string::npos);
   EXPECT_NE(f.source.find("\"{\""), std::string::npos);
+}
+
+TEST(PGInsertTest, UnsupportedFieldEmitsHashError) {
+  TableIR t = MakeTradeTable();
+  t.columns.push_back(MakeCol("mystery", "mystery", FieldKind::kUnknown,
+                               "Unknown", "Unknown"));
+  auto f = RenderTimescaleInsert({t}, "example_trade");
+  EXPECT_NE(f.source.find("#error"), std::string::npos);
+}
+
+TEST(CHInsertTest, RenamedColumnUsesProtoFieldNameInAccessor) {
+  TableIR t = MakeTradeTable();
+  ColumnIR col = MakeCol("stock_symbol", "symbol", FieldKind::kString, "String", "TEXT");
+  t.columns.push_back(col);
+  auto f = RenderClickHouseInsert({t}, "example_trade");
+  // SQL column name used in AppendColumn
+  EXPECT_NE(f.source.find("block.AppendColumn(\"stock_symbol\""), std::string::npos);
+  // Proto accessor uses original field name
+  EXPECT_NE(f.source.find("row.symbol()"), std::string::npos);
+}
+
+TEST(PGInsertTest, RenamedColumnUsesProtoFieldNameInAccessor) {
+  TableIR t = MakeTradeTable();
+  ColumnIR col = MakeCol("stock_symbol", "symbol", FieldKind::kString, "String", "TEXT");
+  t.columns.push_back(col);
+  auto f = RenderTimescaleInsert({t}, "example_trade");
+  // SQL column name appears in the stream_to column list
+  EXPECT_NE(f.source.find("\"stock_symbol\""), std::string::npos);
+  // Proto accessor uses original field name
+  EXPECT_NE(f.source.find("row.symbol()"), std::string::npos);
+}
+
+TEST(CHInsertTest, EmbedAccessorPrefixUsedInAppend) {
+  TableIR t = MakeTradeTable();
+  ColumnIR col = MakeCol("loc_lat", "lat", FieldKind::kDouble, "Float64", "DOUBLE PRECISION");
+  col.embed_accessor_prefix = "loc().";
+  t.columns.push_back(col);
+  auto f = RenderClickHouseInsert({t}, "example_trade");
+  EXPECT_NE(f.source.find("col_loc_lat->Append(row.loc().lat())"), std::string::npos);
+  // Column declaration uses SQL name
+  EXPECT_NE(f.source.find("block.AppendColumn(\"loc_lat\""), std::string::npos);
+}
+
+TEST(PGInsertTest, EmbedAccessorPrefixUsedInTuple) {
+  TableIR t = MakeTradeTable();
+  ColumnIR col = MakeCol("loc_lat", "lat", FieldKind::kDouble, "DOUBLE PRECISION", "DOUBLE PRECISION");
+  col.embed_accessor_prefix = "loc().";
+  t.columns.push_back(col);
+  auto f = RenderTimescaleInsert({t}, "example_trade");
+  // Column name in stream_to list
+  EXPECT_NE(f.source.find("\"loc_lat\""), std::string::npos);
+  // Accessor uses the prefix chain
+  EXPECT_NE(f.source.find("row.loc().lat()"), std::string::npos);
+}
+
+TEST(CHInsertTest, EmbedNullableAccessorUsesHasWithPrefix) {
+  TableIR t = MakeTradeTable();
+  ColumnIR col = MakeCol("loc_label", "label", FieldKind::kString, "String", "TEXT",
+                          /*nullable=*/true);
+  col.embed_accessor_prefix = "loc().";
+  t.columns.push_back(col);
+  auto f = RenderClickHouseInsert({t}, "example_trade");
+  EXPECT_NE(f.source.find("row.loc().has_label()"), std::string::npos);
+}
+
+TEST(PGInsertTest, EmbedNullableAccessorUsesHasWithPrefix) {
+  TableIR t = MakeTradeTable();
+  ColumnIR col = MakeCol("loc_label", "label", FieldKind::kString, "String", "TEXT",
+                          /*nullable=*/true);
+  col.embed_accessor_prefix = "loc().";
+  t.columns.push_back(col);
+  auto f = RenderTimescaleInsert({t}, "example_trade");
+  EXPECT_NE(f.source.find("row.loc().has_label()"), std::string::npos);
 }
 
 TEST(PGInsertTest, RepeatedStringArrayDoubleQuotesAndEscapes) {

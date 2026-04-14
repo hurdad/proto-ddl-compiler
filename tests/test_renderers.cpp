@@ -469,3 +469,59 @@ TEST(TimescaleRendererTest, NoRetentionWhenNotSet) {
   auto sql = RenderTimescaleDDL({MakeTradeTable()});
   EXPECT_EQ(sql.find("add_retention_policy"), std::string::npos);
 }
+
+// --- Interval string single-quote escaping ---
+
+TEST(TimescaleRendererTest, ChunkIntervalSingleQuoteEscaped) {
+  TableIR t = MakeTradeTable();
+  t.ts_chunk_interval = "it's 1 day";
+  auto sql = RenderTimescaleDDL({t});
+  EXPECT_NE(sql.find("INTERVAL 'it''s 1 day'"), std::string::npos);
+}
+
+TEST(TimescaleRendererTest, CompressAfterSingleQuoteEscaped) {
+  TableIR t = MakeTradeTable();
+  t.ts_compress_after = "7' days";
+  auto sql = RenderTimescaleDDL({t});
+  EXPECT_NE(sql.find("INTERVAL '7'' days'"), std::string::npos);
+}
+
+TEST(TimescaleRendererTest, RetentionSingleQuoteEscaped) {
+  TableIR t = MakeTradeTable();
+  t.ts_retention = "1 year's";
+  auto sql = RenderTimescaleDDL({t});
+  EXPECT_NE(sql.find("INTERVAL '1 year''s'"), std::string::npos);
+}
+
+// --- Table name and time column escaping in function calls ---
+
+TEST(TimescaleRendererTest, TableNameSingleQuoteEscapedInHypertableCall) {
+  TableIR t = MakeTradeTable();
+  t.name = "it's_table";
+  auto sql = RenderTimescaleDDL({t});
+  EXPECT_NE(sql.find("create_hypertable('it''s_table'"), std::string::npos);
+}
+
+TEST(TimescaleRendererTest, TimeColumnSingleQuoteEscapedInHypertableCall) {
+  TableIR t = MakeTradeTable();
+  t.columns[0].name = "o'clock";
+  t.ts_time_column  = "o'clock";
+  auto sql = RenderTimescaleDDL({t});
+  EXPECT_NE(sql.find("by_range('o''clock')"), std::string::npos);
+}
+
+TEST(TimescaleRendererTest, TableNameSingleQuoteEscapedInCompressionPolicy) {
+  TableIR t = MakeTradeTable();
+  t.name = "it's_table";
+  t.ts_compress_after = "7 days";
+  auto sql = RenderTimescaleDDL({t});
+  EXPECT_NE(sql.find("add_compression_policy('it''s_table'"), std::string::npos);
+}
+
+TEST(TimescaleRendererTest, TableNameSingleQuoteEscapedInRetentionPolicy) {
+  TableIR t = MakeTradeTable();
+  t.name = "it's_table";
+  t.ts_retention = "1 year";
+  auto sql = RenderTimescaleDDL({t});
+  EXPECT_NE(sql.find("add_retention_policy('it''s_table'"), std::string::npos);
+}

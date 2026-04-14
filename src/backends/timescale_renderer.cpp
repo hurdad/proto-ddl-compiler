@@ -63,9 +63,9 @@ std::string RenderTimescaleDDL(const std::vector<TableIR>& tables,
     out << "\n";
 
     // create_hypertable
-    out << "SELECT create_hypertable('" << table.name << "', by_range('" << table.ts_time_column << "'";
+    out << "SELECT create_hypertable('" << EscapeSqlString(table.name) << "', by_range('" << EscapeSqlString(table.ts_time_column) << "'";
     if (!table.ts_chunk_interval.empty()) {
-      out << ", INTERVAL '" << table.ts_chunk_interval << "'";
+      out << ", INTERVAL '" << EscapeSqlString(table.ts_chunk_interval) << "'";
     }
     out << "));\n";
 
@@ -94,15 +94,15 @@ std::string RenderTimescaleDDL(const std::vector<TableIR>& tables,
       }
       out << "\n);\n";
       if (!table.ts_compress_after.empty()) {
-        out << "SELECT add_compression_policy('" << table.name
-            << "', INTERVAL '" << table.ts_compress_after << "');\n";
+        out << "SELECT add_compression_policy('" << EscapeSqlString(table.name)
+            << "', INTERVAL '" << EscapeSqlString(table.ts_compress_after) << "');\n";
       }
     }
 
     // Retention
     if (!table.ts_retention.empty()) {
-      out << "SELECT add_retention_policy('" << table.name
-          << "', INTERVAL '" << table.ts_retention << "');\n";
+      out << "SELECT add_retention_policy('" << EscapeSqlString(table.name)
+          << "', INTERVAL '" << EscapeSqlString(table.ts_retention) << "');\n";
     }
 
     if (t + 1 < tables.size()) {

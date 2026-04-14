@@ -44,10 +44,21 @@ std::string ChBaseType(const ColumnIR& col) {
   }
 }
 
+// Accessor helpers that respect embed_accessor_prefix.
+std::string FieldAcc(const ColumnIR& col, const std::string& row, const std::string& index = "") {
+  return row + "." + col.embed_accessor_prefix + col.proto_field_name + "(" + index + ")";
+}
+std::string HasAcc(const ColumnIR& col, const std::string& row) {
+  return row + "." + col.embed_accessor_prefix + "has_" + col.proto_field_name + "()";
+}
+std::string SizeAcc(const ColumnIR& col, const std::string& row) {
+  return row + "." + col.embed_accessor_prefix + col.proto_field_name + "_size()";
+}
+
 // Append expression for a single value (scalar, non-nullable).
 std::string ChScalarExpr(const ColumnIR& col, const std::string& row,
                           const std::string& index = "") {
-  const std::string acc = row + "." + col.proto_field_name + "(" + index + ")";
+  const std::string acc = FieldAcc(col, row, index);
   switch (col.field_kind) {
     case FieldKind::kTimestamp: {
       const int prec = ExtractDateTime64Precision(col.type_clickhouse);
@@ -76,9 +87,21 @@ void EmitColumnDecl(std::ostream& out, const ColumnIR& col) {
 
   out << "  auto col_" << col.name << " = std::make_shared<clickhouse::";
   if (col.repeated) {
-    out << "ColumnArrayT<clickhouse::" << base << ">>();\n";
-  } else if (col.nullable) {
-    out << "ColumnNullableT<clickhouse::" << base << ">>();\n";
+    // ColumnArrayT requires the inner column to be constructed explicitly for
+    // types (like ColumnDateTime64) that have no default constructor.
+    out << "ColumnArrayT<clickhouse::" << base << ">>(std::make_shared<clickhouse::" << base << ">(";
+    if (col.field_kind == FieldKind::kTimestamp) {
+      out << ExtractDateTime64Precision(col.type_clickhouse);
+    }
+    out << "));\n";
+  } else if (col.has_proto_presence && col.nullable) {
+    // ColumnNullableT requires the inner column for types with no default ctor.
+    if (col.field_kind == FieldKind::kTimestamp) {
+      out << "ColumnNullableT<clickhouse::ColumnDateTime64>>(std::make_shared<clickhouse::ColumnDateTime64>("
+          << ExtractDateTime64Precision(col.type_clickhouse) << "));\n";
+    } else {
+      out << "ColumnNullableT<clickhouse::" << base << ">>();\n";
+    }
   } else if (col.field_kind == FieldKind::kTimestamp) {
     out << base << ">(" << ExtractDateTime64Precision(col.type_clickhouse) << ");\n";
   } else {
@@ -96,7 +119,7 @@ void EmitAppend(std::ostream& out, const ColumnIR& col) {
     // UUID: copy 16 bytes into a clickhouse::UUID{first, second} pair.
     const std::string bvar = "_b_" + col.name;
     const std::string uvar = "_uuid_" + col.name;
-    const std::string bytes_acc = "row." + col.proto_field_name + "()" +
+    const std::string bytes_acc = "row." + col.embed_accessor_prefix + col.proto_field_name + "()" +
                                    (col.uuid_via_message ? ".value()" : "");
     auto emit_uuid_append = [&](const std::string& accessor) {
       out << "      const auto& " << bvar << " = " << accessor << ";\n";
@@ -106,8 +129,8 @@ void EmitAppend(std::ostream& out, const ColumnIR& col) {
       out << "        memcpy(&" << uvar << ".second, " << bvar << ".data() + 8, 8);\n";
       out << "      }\n";
     };
-    if (col.nullable) {
-      out << "    if (row.has_" << col.proto_field_name << "()) {\n";
+    if (col.has_proto_presence && col.nullable) {
+      out << "    if (" << HasAcc(col, "row") << ") {\n";
       emit_uuid_append(bytes_acc);
       out << "      " << cvar << "->Append(" << uvar << ");\n";
       out << "    } else {\n";
@@ -127,13 +150,13 @@ void EmitAppend(std::ostream& out, const ColumnIR& col) {
       out << ExtractDateTime64Precision(col.type_clickhouse);
     }
     out << ");\n";
-    out << "      for (int i = 0; i < row." << col.proto_field_name << "_size(); ++i) {\n";
+    out << "      for (int i = 0; i < " << SizeAcc(col, "row") << "; ++i) {\n";
     out << "        inner->Append(" << ChScalarExpr(col, "row", "i") << ");\n";
     out << "      }\n";
     out << "      " << cvar << "->AppendAsColumn(inner);\n";
     out << "    }\n";
-  } else if (col.nullable) {
-    out << "    if (row.has_" << col.proto_field_name << "()) {\n";
+  } else if (col.has_proto_presence && col.nullable) {
+    out << "    if (" << HasAcc(col, "row") << ") {\n";
     out << "      " << cvar << "->Append(" << ChScalarExpr(col, "row") << ");\n";
     out << "    } else {\n";
     out << "      " << cvar << "->Append(std::nullopt);\n";

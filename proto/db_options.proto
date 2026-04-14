@@ -65,4 +65,12 @@ extend google.protobuf.FieldOptions {
   string ch_codec                  = 51010;  // CH column codec(s), e.g. "Delta, LZ4" or "ZSTD(1)".
   string db_default                = 51011;  // Column DEFAULT expression (passed through per-backend).
   string db_comment                = 51012;  // Column comment.
+
+  // Flatten the fields of a message-type field into the parent table,
+  // prepending "<value>_" to each column name.  The message type must not
+  // carry ch_table / ts_table annotations (those take precedence).
+  // Not valid on repeated fields or on google.protobuf.Timestamp / dbddl.UUID.
+  // Example: GeoPoint loc = 3 [(dbddl.db_embed_prefix) = "loc"];
+  // → columns loc_lat, loc_lon, loc_label instead of a separate table.
+  string db_embed_prefix           = 51013;
 }

@@ -17,6 +17,7 @@ TableIR MakeTable(const std::string& name,
   col.type_clickhouse = "DateTime64(3)";
   col.type_postgres = "TIMESTAMPTZ";
   col.nullable = false;
+  col.has_proto_presence = true;  // Timestamp is a message type — always has presence
   t.columns.push_back(col);
   return t;
 }
@@ -81,4 +82,68 @@ TEST(ValidateTimescaleTest, NullableTimeColumn) {
 
 TEST(ValidateTimescaleTest, EmptyInput) {
   EXPECT_TRUE(ValidateTimescaleTables({}).empty());
+}
+
+// --- Nullable column without proto presence ---
+
+namespace {
+
+ColumnIR MakeNullableNoPresenceCol(const std::string& name) {
+  ColumnIR col;
+  col.name = name;
+  col.type_clickhouse = "Nullable(Int32)";
+  col.type_postgres = "INTEGER";
+  col.nullable = true;
+  col.has_proto_presence = false;
+  return col;
+}
+
+}  // namespace
+
+TEST(ValidateClickHouseTest, NullableNoPresenceIsError) {
+  TableIR t = MakeTable("t1");
+  t.columns.push_back(MakeNullableNoPresenceCol("bad_col"));
+  auto errors = ValidateClickHouseTables({t});
+  ASSERT_FALSE(errors.empty());
+  EXPECT_NE(errors[0].find("bad_col"), std::string::npos);
+}
+
+TEST(ValidateClickHouseTest, NullableWithPresenceIsOk) {
+  TableIR t = MakeTable("t1");
+  ColumnIR col = MakeNullableNoPresenceCol("good_col");
+  col.has_proto_presence = true;  // 'optional' field — valid
+  t.columns.push_back(col);
+  EXPECT_TRUE(ValidateClickHouseTables({t}).empty());
+}
+
+TEST(ValidateClickHouseTest, RepeatedNullableNoPresenceIsOk) {
+  TableIR t = MakeTable("t1");
+  ColumnIR col = MakeNullableNoPresenceCol("arr_col");
+  col.repeated = true;  // repeated fields are not a problem
+  t.columns.push_back(col);
+  EXPECT_TRUE(ValidateClickHouseTables({t}).empty());
+}
+
+TEST(ValidateTimescaleTest, NullableNoPresenceIsError) {
+  TableIR t = MakeTable("t1");
+  t.columns.push_back(MakeNullableNoPresenceCol("bad_col"));
+  auto errors = ValidateTimescaleTables({t});
+  ASSERT_FALSE(errors.empty());
+  EXPECT_NE(errors[0].find("bad_col"), std::string::npos);
+}
+
+TEST(ValidateTimescaleTest, NullableWithPresenceIsOk) {
+  TableIR t = MakeTable("t1");
+  ColumnIR col = MakeNullableNoPresenceCol("good_col");
+  col.has_proto_presence = true;
+  t.columns.push_back(col);
+  EXPECT_TRUE(ValidateTimescaleTables({t}).empty());
+}
+
+TEST(ValidateTimescaleTest, RepeatedNullableNoPresenceIsOk) {
+  TableIR t = MakeTable("t1");
+  ColumnIR col = MakeNullableNoPresenceCol("arr_col");
+  col.repeated = true;
+  t.columns.push_back(col);
+  EXPECT_TRUE(ValidateTimescaleTables({t}).empty());
 }

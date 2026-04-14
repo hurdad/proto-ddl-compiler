@@ -32,6 +32,17 @@ struct ColumnIR {
   FieldKind   field_kind = FieldKind::kUnknown;
   std::string enum_cpp_type;              // e.g. "example::Side" — non-empty only for kEnum
   bool        uuid_via_message = false;   // true when field type is dbddl.UUID (accessor needs .value())
+  // True when the proto field has actual presence (proto3 optional keyword or message type).
+  // Only these fields emit has_X() / std::optional in insert code.
+  // Distinct from `nullable` which drives SQL column nullability and can be
+  // overridden by db_nullable regardless of proto presence.
+  bool        has_proto_presence = false;
+  // Non-empty when this column was flattened from an embedded sub-message via
+  // db_embed_prefix.  Contains the chain of accessors to reach the sub-message
+  // from the row, including a trailing dot.
+  // e.g. "loc()."  → row.loc().field()
+  // e.g. "a().b()." → row.a().b().field()
+  std::string embed_accessor_prefix;
 
   // Index generation
   bool        db_index = false;

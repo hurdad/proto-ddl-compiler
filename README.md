@@ -117,6 +117,7 @@ SELECT create_hypertable('trades', by_range('timestamp'));
 | `ch_codec`                  | CH column codec(s), e.g. `Delta, LZ4` or `ZSTD(1)`                  |
 | `db_default`                | Column `DEFAULT` expression (passed through as-is to both backends)  |
 | `db_comment`                | Column comment (CH: inline `COMMENT`; PG: `COMMENT ON COLUMN`)      |
+| `db_embed_prefix`           | Flatten a message-type field into the parent table; sub-fields are prefixed with the option value (e.g. `"loc"` → `loc_lat`, `loc_lon`). Not applicable to `Timestamp` or `UUID` fields. |
 
 ## Proto3 type mapping
 
@@ -137,6 +138,8 @@ SELECT create_hypertable('trades', by_range('timestamp'));
 | `dbddl.UUID`         | `UUID`       | `UUID`            |
 
 Nullability defaults to `false` for implicit proto3 fields and `true` for `optional`-qualified fields. Message fields (`google.protobuf.Timestamp`, `dbddl.UUID`) always have presence and are nullable by default — use `db_nullable = false` to make them `NOT NULL`. The `db_nullable` option always overrides.
+
+> **Note**: `db_nullable = true` requires the field to be declared `optional` (or be a message type). Using `db_nullable = true` on a plain (non-optional) proto3 scalar is a validation error — the generated insert code relies on `has_X()` proto presence methods that only exist for `optional` fields.
 
 ## Requirements
 

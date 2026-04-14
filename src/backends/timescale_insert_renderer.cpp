@@ -14,6 +14,17 @@ std::string Capitalize(const std::string& s) {
   return r;
 }
 
+// Accessor helpers that respect embed_accessor_prefix.
+std::string FieldAcc(const ColumnIR& col, const std::string& row, const std::string& index = "") {
+  return row + "." + col.embed_accessor_prefix + col.proto_field_name + "(" + index + ")";
+}
+std::string HasAcc(const ColumnIR& col, const std::string& row) {
+  return row + "." + col.embed_accessor_prefix + "has_" + col.proto_field_name + "()";
+}
+std::string SizeAcc(const ColumnIR& col, const std::string& row) {
+  return row + "." + col.embed_accessor_prefix + col.proto_field_name + "_size()";
+}
+
 // Emit the tuple element expression for one column into `src`.
 void EmitTupleElem(std::ostream& src, const ColumnIR& col,
                    const std::string& row) {
@@ -21,16 +32,16 @@ void EmitTupleElem(std::ostream& src, const ColumnIR& col,
     // Build PostgreSQL array literal: {val1,val2,...}
     src << "        [&]() -> std::string {\n"
         << "          std::string arr = \"{\";\n"
-        << "          for (int i = 0; i < " << row << "." << col.proto_field_name << "_size(); ++i) {\n"
+        << "          for (int i = 0; i < " << SizeAcc(col, row) << "; ++i) {\n"
         << "            if (i > 0) arr += \",\";\n";
     if (col.field_kind == FieldKind::kEnum) {
       src << "            arr += " << col.enum_cpp_type << "_Name("
-          << row << "." << col.proto_field_name << "(i));\n";
+          << FieldAcc(col, row, "i") << ");\n";
     } else if (col.field_kind == FieldKind::kString ||
                col.field_kind == FieldKind::kBytes) {
       // Double-quote each element and escape backslash/double-quote for PG.
       src << "            {\n"
-          << "              const auto& _elem = " << row << "." << col.proto_field_name << "(i);\n"
+          << "              const auto& _elem = " << FieldAcc(col, row, "i") << ";\n"
           << "              arr += '\"';\n"
           << "              for (char _c : _elem) {\n"
           << "                if (_c == '\\\\') arr += \"\\\\\\\\\";\n"
@@ -40,7 +51,7 @@ void EmitTupleElem(std::ostream& src, const ColumnIR& col,
           << "              arr += '\"';\n"
           << "            }\n";
     } else {
-      src << "            arr += std::to_string(" << row << "." << col.proto_field_name << "(i));\n";
+      src << "            arr += std::to_string(" << FieldAcc(col, row, "i") << ");\n";
     }
     src << "          }\n"
         << "          arr += \"}\";\n"
@@ -50,7 +61,7 @@ void EmitTupleElem(std::ostream& src, const ColumnIR& col,
   }
 
   if (col.field_kind == FieldKind::kUUID) {
-    const std::string bytes_acc = row + "." + col.proto_field_name + "()" +
+    const std::string bytes_acc = row + "." + col.embed_accessor_prefix + col.proto_field_name + "()" +
                                    (col.uuid_via_message ? ".value()" : "");
     auto emit_uuid_lambda = [&](const std::string& acc) {
       src << "[&]() -> std::string {\n"
@@ -65,9 +76,9 @@ void EmitTupleElem(std::ostream& src, const ColumnIR& col,
           << "          return _buf;\n"
           << "        }()";
     };
-    if (col.nullable) {
+    if (col.has_proto_presence && col.nullable) {
       // Nullable UUID: return std::optional<std::string>{} when absent.
-      src << row << ".has_" << col.proto_field_name << "()\n"
+      src << HasAcc(col, row) << "\n"
           << "            ? std::optional<std::string>{";
       emit_uuid_lambda(bytes_acc);
       src << "}\n"
@@ -80,7 +91,7 @@ void EmitTupleElem(std::ostream& src, const ColumnIR& col,
 
   if (col.field_kind == FieldKind::kTimestamp) {
     // Format as "YYYY-MM-DD HH:MM:SS.nnnnnnnnn+00" for pqxx TIMESTAMPTZ.
-    const std::string acc = row + "." + col.proto_field_name + "()";
+    const std::string acc = row + "." + col.embed_accessor_prefix + col.proto_field_name + "()";
     src << "[&]() -> std::string {\n"
         << "          char _buf[30], _out[42];\n"
         << "          time_t _sec = static_cast<time_t>(" << acc << ".seconds());\n"
@@ -94,7 +105,7 @@ void EmitTupleElem(std::ostream& src, const ColumnIR& col,
     return;
   }
 
-  if (col.nullable) {
+  if (col.has_proto_presence && col.nullable) {
     const std::string cpp_opt_type = [&]() -> std::string {
       switch (col.field_kind) {
         case FieldKind::kInt32:  return "std::optional<int32_t>";
@@ -107,12 +118,12 @@ void EmitTupleElem(std::ostream& src, const ColumnIR& col,
         default:                 return "std::optional<std::string>";
       }
     }();
-    src << row << ".has_" << col.proto_field_name << "()\n"
+    src << HasAcc(col, row) << "\n"
         << "            ? " << cpp_opt_type << "{";
     if (col.field_kind == FieldKind::kEnum) {
-      src << col.enum_cpp_type << "_Name(" << row << "." << col.proto_field_name << "())";
+      src << col.enum_cpp_type << "_Name(" << FieldAcc(col, row) << ")";
     } else {
-      src << row << "." << col.proto_field_name << "()";
+      src << FieldAcc(col, row);
     }
     src << "}\n"
         << "            : " << cpp_opt_type << "{}";
@@ -120,11 +131,11 @@ void EmitTupleElem(std::ostream& src, const ColumnIR& col,
   }
 
   if (col.field_kind == FieldKind::kEnum) {
-    src << col.enum_cpp_type << "_Name(" << row << "." << col.proto_field_name << "())";
+    src << col.enum_cpp_type << "_Name(" << FieldAcc(col, row) << ")";
     return;
   }
 
-  src << row << "." << col.proto_field_name << "()";
+  src << FieldAcc(col, row);
 }
 
 void RenderFunction(std::ostream& hdr, std::ostream& src, const TableIR& table) {
@@ -162,6 +173,15 @@ void RenderFunction(std::ostream& hdr, std::ostream& src, const TableIR& table) 
   body << "  }\n";
   body << "  stream.complete();\n";
   body << "  txn.commit();\n";
+
+  // Emit #error for any unsupported field types before the function definition
+  // so compilation always halts with a clear message rather than a cryptic
+  // "has no member" error from calling a nonexistent proto accessor.
+  for (const auto& col : table.columns) {
+    if (col.field_kind == FieldKind::kUnknown) {
+      src << "#error \"protoc-gen-dbddl: unsupported field type for column '" << col.name << "'\"\n";
+    }
+  }
 
   src << "void " << fn << "(\n" << sig_args << " {\n";
   src << "  if (rows.empty()) return;\n\n";
