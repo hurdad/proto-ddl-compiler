@@ -28,7 +28,17 @@ void EmitTupleElem(std::ostream& src, const ColumnIR& col,
           << row << "." << col.proto_field_name << "(i));\n";
     } else if (col.field_kind == FieldKind::kString ||
                col.field_kind == FieldKind::kBytes) {
-      src << "            arr += " << row << "." << col.proto_field_name << "(i);\n";
+      // Double-quote each element and escape backslash/double-quote for PG.
+      src << "            {\n"
+          << "              const auto& _elem = " << row << "." << col.proto_field_name << "(i);\n"
+          << "              arr += '\"';\n"
+          << "              for (char _c : _elem) {\n"
+          << "                if (_c == '\\\\') arr += \"\\\\\\\\\";\n"
+          << "                else if (_c == '\"') arr += \"\\\\\\\"\";\n"
+          << "                else arr += _c;\n"
+          << "              }\n"
+          << "              arr += '\"';\n"
+          << "            }\n";
     } else {
       src << "            arr += std::to_string(" << row << "." << col.proto_field_name << "(i));\n";
     }

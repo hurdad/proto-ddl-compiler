@@ -2,6 +2,20 @@
 
 #include <sstream>
 
+namespace {
+
+std::string EscapeSqlString(const std::string& s) {
+  std::string out;
+  out.reserve(s.size());
+  for (char c : s) {
+    if (c == '\'') out += "''";
+    else out += c;
+  }
+  return out;
+}
+
+}  // namespace
+
 std::string RenderTimescaleDDL(const std::vector<TableIR>& tables,
                                const std::vector<std::string>& pg_enum_types) {
   std::ostringstream out;
@@ -43,7 +57,7 @@ std::string RenderTimescaleDDL(const std::vector<TableIR>& tables,
     for (const auto& col : table.columns) {
       if (col.db_comment.empty()) continue;
       out << "COMMENT ON COLUMN " << table.name << "." << col.name
-          << " IS '" << col.db_comment << "';\n";
+          << " IS '" << EscapeSqlString(col.db_comment) << "';\n";
     }
 
     out << "\n";
@@ -73,10 +87,10 @@ std::string RenderTimescaleDDL(const std::vector<TableIR>& tables,
       out << "ALTER TABLE " << table.name << " SET (\n";
       out << "  timescaledb.compress";
       if (!table.ts_compress_segmentby.empty()) {
-        out << ",\n  timescaledb.compress_segmentby = '" << table.ts_compress_segmentby << "'";
+        out << ",\n  timescaledb.compress_segmentby = '" << EscapeSqlString(table.ts_compress_segmentby) << "'";
       }
       if (!table.ts_compress_orderby.empty()) {
-        out << ",\n  timescaledb.compress_orderby = '" << table.ts_compress_orderby << "'";
+        out << ",\n  timescaledb.compress_orderby = '" << EscapeSqlString(table.ts_compress_orderby) << "'";
       }
       out << "\n);\n";
       if (!table.ts_compress_after.empty()) {

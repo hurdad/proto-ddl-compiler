@@ -156,10 +156,9 @@ void VisitMessage(const google::protobuf::Descriptor& message,
       const auto* field = message.field(i);
       if (field->cpp_type() != google::protobuf::FieldDescriptor::CPPTYPE_ENUM) continue;
       const auto* ed = field->enum_type();
-      if (!seen_enums->insert(ed->full_name()).second) continue;
-
       std::string pg_type = ed->name();
       std::transform(pg_type.begin(), pg_type.end(), pg_type.begin(), ::tolower);
+      if (!seen_enums->insert(pg_type).second) continue;
 
       std::ostringstream ddl;
       ddl << "CREATE TYPE " << pg_type << " AS ENUM (";

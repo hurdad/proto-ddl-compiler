@@ -349,11 +349,39 @@ TEST(ClickHouseRendererTest, ColumnCommentEmitted) {
   EXPECT_NE(sql.find("COMMENT 'Trading symbol'"), std::string::npos);
 }
 
+TEST(ClickHouseRendererTest, ColumnCommentSingleQuoteEscaped) {
+  TableIR t = MakeTradeTable();
+  t.columns[1].db_comment = "It's a symbol";
+  auto sql = RenderClickHouseDDL({t});
+  EXPECT_NE(sql.find("COMMENT 'It''s a symbol'"), std::string::npos);
+}
+
 TEST(TimescaleRendererTest, ColumnCommentEmitsCommentOn) {
   TableIR t = MakeTradeTable();
   t.columns[1].db_comment = "Trading symbol";
   auto sql = RenderTimescaleDDL({t});
   EXPECT_NE(sql.find("COMMENT ON COLUMN trades.symbol IS 'Trading symbol'"), std::string::npos);
+}
+
+TEST(TimescaleRendererTest, ColumnCommentSingleQuoteEscaped) {
+  TableIR t = MakeTradeTable();
+  t.columns[1].db_comment = "It's a symbol";
+  auto sql = RenderTimescaleDDL({t});
+  EXPECT_NE(sql.find("IS 'It''s a symbol'"), std::string::npos);
+}
+
+TEST(TimescaleRendererTest, CompressSegmentbySingleQuoteEscaped) {
+  TableIR t = MakeTradeTable();
+  t.ts_compress_segmentby = "it's_col";
+  auto sql = RenderTimescaleDDL({t});
+  EXPECT_NE(sql.find("compress_segmentby = 'it''s_col'"), std::string::npos);
+}
+
+TEST(TimescaleRendererTest, CompressOrderbySingleQuoteEscaped) {
+  TableIR t = MakeTradeTable();
+  t.ts_compress_orderby = "ts DESC -- it's sorted";
+  auto sql = RenderTimescaleDDL({t});
+  EXPECT_NE(sql.find("compress_orderby = 'ts DESC -- it''s sorted'"), std::string::npos);
 }
 
 TEST(TimescaleRendererTest, ColumnCommentBeforeHypertable) {

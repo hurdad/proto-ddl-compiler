@@ -70,7 +70,7 @@ std::string ChScalarExpr(const ColumnIR& col, const std::string& row,
 void EmitColumnDecl(std::ostream& out, const ColumnIR& col) {
   const std::string base = ChBaseType(col);
   if (base.empty()) {
-    out << "  // TODO: unsupported field '" << col.name << "' — add manually\n";
+    out << "#error \"protoc-gen-dbddl: unsupported field type for column '" << col.name << "'\"\n";
     return;
   }
 

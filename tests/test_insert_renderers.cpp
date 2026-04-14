@@ -161,6 +161,15 @@ TEST(CHInsertTest, RepeatedColumnUsesArrayT) {
   EXPECT_NE(f.source.find("tags_size()"), std::string::npos);
 }
 
+TEST(CHInsertTest, UnsupportedFieldEmitsHashError) {
+  TableIR t = MakeTradeTable();
+  t.columns.push_back(MakeCol("mystery", "mystery", FieldKind::kUnknown,
+                               "Unknown", "Unknown"));
+  auto f = RenderClickHouseInsert({t}, "example_trade");
+  EXPECT_NE(f.source.find("#error"), std::string::npos);
+  EXPECT_EQ(f.source.find("// TODO"), std::string::npos);
+}
+
 // ============================================================
 // TimescaleDB insert renderer
 // ============================================================
@@ -253,4 +262,20 @@ TEST(PGInsertTest, RepeatedColumnBuildsArrayLiteral) {
   auto f = RenderTimescaleInsert({t}, "example_trade");
   EXPECT_NE(f.source.find("tags_size()"), std::string::npos);
   EXPECT_NE(f.source.find("\"{\""), std::string::npos);
+}
+
+TEST(PGInsertTest, RepeatedStringArrayDoubleQuotesAndEscapes) {
+  TableIR t = MakeTradeTable();
+  t.columns.push_back(MakeCol("tags", "tags", FieldKind::kString,
+                               "Array(String)", "TEXT[]",
+                               /*nullable=*/false, /*repeated=*/true));
+  auto f = RenderTimescaleInsert({t}, "example_trade");
+  // Each element must be wrapped in double-quotes.
+  EXPECT_NE(f.source.find("arr += '\"'"), std::string::npos);
+  // A per-character loop must handle backslash and double-quote escaping.
+  EXPECT_NE(f.source.find("for (char _c : _elem)"), std::string::npos);
+  // Backslash escape: the generated code emits arr += "\\\\";
+  EXPECT_NE(f.source.find("if (_c == '\\\\')"), std::string::npos);
+  // Double-quote escape: the generated code emits arr += "\\\";
+  EXPECT_NE(f.source.find("else if (_c == '\"')"), std::string::npos);
 }

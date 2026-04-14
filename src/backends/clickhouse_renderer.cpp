@@ -2,6 +2,20 @@
 
 #include <sstream>
 
+namespace {
+
+std::string EscapeSqlString(const std::string& s) {
+  std::string out;
+  out.reserve(s.size());
+  for (char c : s) {
+    if (c == '\'') out += "''";
+    else out += c;
+  }
+  return out;
+}
+
+}  // namespace
+
 std::string RenderClickHouseDDL(const std::vector<TableIR>& tables) {
   std::ostringstream out;
   for (size_t t = 0; t < tables.size(); ++t) {
@@ -34,7 +48,7 @@ std::string RenderClickHouseDDL(const std::vector<TableIR>& tables) {
         out << " CODEC(" << col.ch_codec << ")";
       }
       if (!col.db_comment.empty()) {
-        out << " COMMENT '" << col.db_comment << "'";
+        out << " COMMENT '" << EscapeSqlString(col.db_comment) << "'";
       }
       if (i + 1 < table.columns.size() || !indexed.empty()) {
         out << ",";
