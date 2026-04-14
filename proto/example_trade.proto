@@ -1,0 +1,19 @@
+syntax = "proto2";
+
+package example;
+
+import "db_options.proto";
+
+message Trade {
+  option (dbddl.ch_table) = "trades";
+  option (dbddl.ch_partition_by) = "toYYYYMM(timestamp)";
+  option (dbddl.ch_order_by) = "timestamp";
+
+  option (dbddl.ts_table) = "trades";
+  option (dbddl.ts_time_column) = "timestamp";
+
+  optional int64 timestamp = 1 [(dbddl.ch_column_type) = "DateTime64(3)"];
+  optional string symbol = 2;
+  optional double price = 3;
+  optional int32 size = 4;
+}
