@@ -95,7 +95,6 @@ const std::vector<std::string> kEnumTypes = {
     "CREATE TYPE side AS ENUM ('SIDE_UNKNOWN', 'SIDE_BUY', 'SIDE_SELL');",
 };
 
-
 TEST(TimescaleRendererTest, EmptyInput) {
   EXPECT_EQ(RenderTimescaleDDL({}), "");
 }

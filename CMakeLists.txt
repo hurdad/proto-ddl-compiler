@@ -16,7 +16,9 @@ add_executable(protoc-gen-dbddl
   src/validate.cpp
   src/descriptor_utils.cpp
   src/backends/clickhouse_renderer.cpp
+  src/backends/clickhouse_insert_renderer.cpp
   src/backends/timescale_renderer.cpp
+  src/backends/timescale_insert_renderer.cpp
   ${DB_OPTIONS_SRCS}
 )
 
@@ -45,10 +47,13 @@ add_executable(dbddl_tests
   tests/test_mapper.cpp
   tests/test_validate.cpp
   tests/test_renderers.cpp
+  tests/test_insert_renderers.cpp
   src/mapper.cpp
   src/validate.cpp
   src/backends/clickhouse_renderer.cpp
+  src/backends/clickhouse_insert_renderer.cpp
   src/backends/timescale_renderer.cpp
+  src/backends/timescale_insert_renderer.cpp
   ${DB_OPTIONS_SRCS}
   ${MAPPER_TEST_SRCS}
 )

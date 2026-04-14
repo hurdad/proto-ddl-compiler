@@ -10,7 +10,9 @@
 #include <string>
 #include <vector>
 
+#include "backends/clickhouse_insert_renderer.hpp"
 #include "backends/clickhouse_renderer.hpp"
+#include "backends/timescale_insert_renderer.hpp"
 #include "backends/timescale_renderer.hpp"
 #include "descriptor_utils.hpp"
 #include "validate.hpp"
@@ -93,16 +95,20 @@ bool DbddlGenerator::Generate(const google::protobuf::FileDescriptor* file,
 
   if (!extracted.clickhouse_tables.empty()) {
     const std::string ch_sql = RenderClickHouseDDL(extracted.clickhouse_tables);
-    if (!WriteFile(context, base + ".clickhouse.sql", ch_sql, error)) {
-      return false;
-    }
+    if (!WriteFile(context, base + ".clickhouse.sql", ch_sql, error)) return false;
+
+    const auto ch_ins = RenderClickHouseInsert(extracted.clickhouse_tables, base);
+    if (!WriteFile(context, base + ".ch_insert.h",  ch_ins.header, error)) return false;
+    if (!WriteFile(context, base + ".ch_insert.cc", ch_ins.source, error)) return false;
   }
 
   if (!extracted.timescale_tables.empty()) {
     const std::string ts_sql = RenderTimescaleDDL(extracted.timescale_tables, extracted.pg_enum_types);
-    if (!WriteFile(context, base + ".timescaledb.sql", ts_sql, error)) {
-      return false;
-    }
+    if (!WriteFile(context, base + ".timescaledb.sql", ts_sql, error)) return false;
+
+    const auto pg_ins = RenderTimescaleInsert(extracted.timescale_tables, base);
+    if (!WriteFile(context, base + ".pg_insert.h",  pg_ins.header, error)) return false;
+    if (!WriteFile(context, base + ".pg_insert.cc", pg_ins.source, error)) return false;
   }
 
   return true;

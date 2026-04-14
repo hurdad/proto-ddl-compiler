@@ -145,7 +145,67 @@ protoc \
   proto/example_trade.proto
 ```
 
-This produces `out/example_trade.clickhouse.sql` and `out/example_trade.timescaledb.sql`.
+This produces:
+- `out/example_trade.clickhouse.sql` — ClickHouse DDL
+- `out/example_trade.timescaledb.sql` — TimescaleDB DDL
+- `out/example_trade.ch_insert.h` / `out/example_trade.ch_insert.cc` — ClickHouse C++ insert functions
+- `out/example_trade.pg_insert.h` / `out/example_trade.pg_insert.cc` — TimescaleDB C++ insert functions
+
+## C++ insert backends
+
+For each annotated message the plugin generates typed C++ insert functions inside the `dbddl` namespace.
+
+### ClickHouse
+
+Uses the [`clickhouse-cpp`](https://github.com/ClickHouse/clickhouse-cpp) client library.
+
+**`example_trade.ch_insert.h`**
+```cpp
+#include <clickhouse/client.h>
+#include "example_trade.pb.h"
+
+namespace dbddl {
+void InsertTrades(clickhouse::Client& client,
+                  const std::vector<example::Trade>& rows);
+}
+```
+
+The generated source builds typed column objects (`ColumnDateTime64`, `ColumnString`, `ColumnFloat64`, `ColumnInt32`) and appends all rows before calling `client.Insert("trades", block)`.
+
+### TimescaleDB
+
+Uses [`libpqxx`](https://github.com/jtv/libpqxx) with binary streaming.
+
+**`example_trade.pg_insert.h`**
+```cpp
+#include <pqxx/pqxx>
+#include "example_trade.pb.h"
+
+namespace dbddl {
+void InsertTrades(pqxx::connection& conn,
+                  const std::vector<example::Trade>& rows);
+}
+```
+
+The generated source opens a `pqxx::work` transaction, streams rows via `pqxx::stream_to::table` using `std::make_tuple`, then calls `stream.complete()` and `txn.commit()`.
+
+### Field-type handling in insert code
+
+| Field kind | ClickHouse | TimescaleDB |
+|---|---|---|
+| Timestamp | `ColumnDateTime64(N)` with `seconds()*mult + nanos()/div` | `std::chrono::system_clock::from_time_t` + `nanoseconds()` |
+| Enum | `ColumnLowCardinalityT<ColumnString>` + `EnumType_Name(row.field())` | `EnumType_Name(row.field())` string |
+| Nullable | `ColumnNullableT<ColT>` + `has_field()` / `std::nullopt` | `std::optional<T>` + `has_field()` ternary |
+| Repeated | `ColumnArrayT<ColT>` + `AppendAsColumn` | PostgreSQL array literal `{v1,v2,...}` |
+
+### Additional runtime dependencies
+
+Add to your project's link libraries when using the generated insert code:
+
+| Backend | Library |
+|---|---|
+| ClickHouse | `clickhouse-cpp` |
+| TimescaleDB | `libpqxx` |
 
 ## Running tests
 
