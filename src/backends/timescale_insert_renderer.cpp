@@ -27,6 +27,9 @@ void EmitTupleElem(std::ostream& src, const ColumnIR& col,
     if (col.field_kind == FieldKind::kEnum) {
       src << "            arr += " << col.enum_cpp_type << "_Name("
           << row << "." << col.proto_field_name << "(i));\n";
+    } else if (col.field_kind == FieldKind::kString ||
+               col.field_kind == FieldKind::kBytes) {
+      src << "            arr += " << row << "." << col.proto_field_name << "(i);\n";
     } else {
       src << "            arr += std::to_string(" << row << "." << col.proto_field_name << "(i));\n";
     }
@@ -40,18 +43,29 @@ void EmitTupleElem(std::ostream& src, const ColumnIR& col,
   if (col.field_kind == FieldKind::kUUID) {
     const std::string bytes_acc = row + "." + col.proto_field_name + "()" +
                                    (col.uuid_via_message ? ".value()" : "");
-    // Convert 16 raw bytes to xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    src << "[&]() -> std::string {\n"
-        << "          const auto& _b = " << bytes_acc << ";\n"
-        << "          if (_b.size() != 16) return \"\";\n"
-        << "          char _buf[37];\n"
-        << "          const auto* _u = reinterpret_cast<const uint8_t*>(_b.data());\n"
-        << "          snprintf(_buf, sizeof(_buf),\n"
-        << "              \"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x\",\n"
-        << "              _u[0],_u[1],_u[2],_u[3],_u[4],_u[5],_u[6],_u[7],\n"
-        << "              _u[8],_u[9],_u[10],_u[11],_u[12],_u[13],_u[14],_u[15]);\n"
-        << "          return _buf;\n"
-        << "        }()";
+    auto emit_uuid_lambda = [&](const std::string& acc) {
+      src << "[&]() -> std::string {\n"
+          << "          const auto& _b = " << acc << ";\n"
+          << "          if (_b.size() != 16) return \"\";\n"
+          << "          char _buf[37];\n"
+          << "          const auto* _u = reinterpret_cast<const uint8_t*>(_b.data());\n"
+          << "          snprintf(_buf, sizeof(_buf),\n"
+          << "              \"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x\",\n"
+          << "              _u[0],_u[1],_u[2],_u[3],_u[4],_u[5],_u[6],_u[7],\n"
+          << "              _u[8],_u[9],_u[10],_u[11],_u[12],_u[13],_u[14],_u[15]);\n"
+          << "          return _buf;\n"
+          << "        }()";
+    };
+    if (col.nullable) {
+      // Nullable UUID: return std::optional<std::string>{} when absent.
+      src << row << ".has_" << col.proto_field_name << "()\n"
+          << "            ? std::optional<std::string>{";
+      emit_uuid_lambda(bytes_acc);
+      src << "}\n"
+          << "            : std::optional<std::string>{}";
+    } else {
+      emit_uuid_lambda(bytes_acc);
+    }
     return;
   }
 

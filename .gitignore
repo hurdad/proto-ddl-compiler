@@ -1,3 +1,13 @@
+# Build and output directories
+build/
+cmake-build*/
+out/
+.idea/
+
+# Generated protobuf files (built into build/)
+*.pb.cc
+*.pb.h
+
 # Prerequisites
 *.d
 

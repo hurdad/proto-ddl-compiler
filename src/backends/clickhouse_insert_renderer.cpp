@@ -76,9 +76,9 @@ void EmitColumnDecl(std::ostream& out, const ColumnIR& col) {
 
   out << "  auto col_" << col.name << " = std::make_shared<clickhouse::";
   if (col.repeated) {
-    out << "ColumnArrayT<" << base << ">();\n";
+    out << "ColumnArrayT<" << base << ">>();\n";
   } else if (col.nullable) {
-    out << "ColumnNullableT<" << base << ">();\n";
+    out << "ColumnNullableT<" << base << ">>();\n";
   } else if (col.field_kind == FieldKind::kTimestamp) {
     out << base << ">(" << ExtractDateTime64Precision(col.type_clickhouse) << ");\n";
   } else {

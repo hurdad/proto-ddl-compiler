@@ -61,10 +61,12 @@ FieldKind ToFieldKind(const google::protobuf::FieldDescriptor& field) {
       return field.type() == FD::TYPE_BYTES ? FieldKind::kBytes : FieldKind::kString;
     case FD::CPPTYPE_ENUM:   return FieldKind::kEnum;
     case FD::CPPTYPE_MESSAGE:
-      if (field.message_type() != nullptr &&
-          field.message_type()->full_name() == "dbddl.UUID")
-        return FieldKind::kUUID;
-      return FieldKind::kTimestamp;  // only Timestamp reaches here
+      if (field.message_type() != nullptr) {
+        const auto& name = field.message_type()->full_name();
+        if (name == "dbddl.UUID") return FieldKind::kUUID;
+        if (name == "google.protobuf.Timestamp") return FieldKind::kTimestamp;
+      }
+      return FieldKind::kUnknown;
     default:                  return FieldKind::kUnknown;
   }
 }

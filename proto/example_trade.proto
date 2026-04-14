@@ -1,27 +1,57 @@
+// Example proto demonstrating proto-ddl-compiler annotations.
+// Run the plugin to generate DDL and C++ insert code for both
+// ClickHouse and TimescaleDB from this single source of truth.
 syntax = "proto3";
 
 package example;
 
 import "db_options.proto";
+import "google/protobuf/timestamp.proto";
 
+// Trade side: buy or sell.
 enum Side {
   SIDE_UNKNOWN = 0;
   SIDE_BUY     = 1;
   SIDE_SELL    = 2;
 }
 
+// A single trade tick.
+//
+// ClickHouse: partitioned by month, ordered by timestamp (MergeTree).
+// TimescaleDB: hypertable on the timestamp column.
 message Trade {
-  option (dbddl.ch_table) = "trades";
+  // ClickHouse table settings.
+  option (dbddl.ch_table)        = "trades";
   option (dbddl.ch_partition_by) = "toYYYYMM(timestamp)";
-  option (dbddl.ch_order_by) = "timestamp";
+  option (dbddl.ch_order_by)     = "timestamp";
 
-  option (dbddl.ts_table) = "trades";
+  // TimescaleDB hypertable settings.
+  option (dbddl.ts_table)       = "trades";
   option (dbddl.ts_time_column) = "timestamp";
 
-  int64  timestamp = 1 [(dbddl.ch_column_type) = "DateTime64(3)"];
-  string symbol    = 2;
-  double price     = 3;
-  int32  size      = 4;
-  Side   side      = 5;
-  dbddl.UUID trade_id = 6;
+  // Event time. db_nullable=false is required because google.protobuf.Timestamp
+  // is a message type (has presence), which would otherwise be treated as nullable.
+  // Maps to DateTime64(3) in ClickHouse and TIMESTAMPTZ in TimescaleDB.
+  google.protobuf.Timestamp timestamp = 1 [
+    (dbddl.db_nullable) = false,
+    (dbddl.db_comment)  = "UTC event timestamp"
+  ];
+
+  // Instrument identifier, e.g. "AAPL" or "BTC-USD".
+  string symbol = 2 [(dbddl.db_comment) = "Instrument symbol"];
+
+  // Execution price.
+  double price = 3 [(dbddl.db_comment) = "Execution price"];
+
+  // Number of shares / units traded.
+  int32 size = 4 [(dbddl.db_comment) = "Quantity traded"];
+
+  // Direction of the aggressor: buy or sell.
+  // Maps to LowCardinality(String) in ClickHouse and a native ENUM in TimescaleDB.
+  Side side = 5 [(dbddl.db_comment) = "Aggressor side"];
+
+  // Optional opaque trade identifier from the exchange.
+  // dbddl.UUID is a 16-byte message type that maps to UUID in both backends.
+  // Nullable because message fields have presence in proto3.
+  dbddl.UUID trade_id = 6 [(dbddl.db_comment) = "Exchange-assigned trade ID"];
 }
