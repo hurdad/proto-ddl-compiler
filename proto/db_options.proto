@@ -4,6 +4,12 @@ package dbddl;
 
 import "google/protobuf/descriptor.proto";
 
+// Use as a field type to store a 128-bit UUID (raw bytes).
+// Automatically maps to UUID in ClickHouse and PostgreSQL.
+message UUID {
+  bytes value = 1;
+}
+
 extend google.protobuf.MessageOptions {
   string ch_table = 50001;
   string ch_engine = 50002;
@@ -13,6 +19,37 @@ extend google.protobuf.MessageOptions {
   string ts_table = 50005;
   string ts_time_column = 50006;
   string ts_chunk_interval = 50007;
+
+  // ClickHouse table TTL expression, e.g. "timestamp + INTERVAL 3 MONTH".
+  string ch_ttl = 50010;
+
+  // ClickHouse table SETTINGS clause, e.g. "index_granularity = 8192".
+  string ch_settings = 50011;
+
+  // ClickHouse SAMPLE BY expression.
+  string ch_sample_by = 50012;
+
+  // Enable TimescaleDB compression. Value is the compress_after interval, e.g. "7 days".
+  string ts_compress_after = 50013;
+
+  // timescaledb.compress_segmentby columns, e.g. "symbol".
+  string ts_compress_segmentby = 50014;
+
+  // timescaledb.compress_orderby expression, e.g. "timestamp DESC".
+  string ts_compress_orderby = 50015;
+
+  // Add a data-retention policy. Value is the drop_after interval, e.g. "1 year".
+  string ts_retention = 50016;
+
+  // Add a synthetic auto-incrementing integer PK column with the given name.
+  // PG: BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+  // CH: UInt64 (application-assigned; no auto-increment in ClickHouse)
+  string db_auto_pk = 50008;
+
+  // Add a synthetic UUID PK column named "id".
+  // PG: UUID DEFAULT gen_random_uuid() PRIMARY KEY
+  // CH: UUID DEFAULT generateUUIDv4()
+  bool db_uuid_pk = 50009;
 }
 
 extend google.protobuf.FieldOptions {
@@ -20,4 +57,12 @@ extend google.protobuf.FieldOptions {
   string pg_column_type = 51002;
   bool db_nullable = 51003;
   string db_name = 51004;
+  bool   db_uuid                   = 51005;  // Mark a bytes field as a 128-bit UUID.
+  bool   db_index                  = 51006;  // Create an index on this column.
+  string pg_index_using            = 51007;  // PG index method: "hash", "brin", "gin" (default: btree).
+  string ch_skip_index_type        = 51008;  // CH data-skipping index type: "minmax", "set(N)", "bloom_filter" (default: minmax).
+  uint32 ch_skip_index_granularity = 51009;  // CH index granularity (default: 1).
+  string ch_codec                  = 51010;  // CH column codec(s), e.g. "Delta, LZ4" or "ZSTD(1)".
+  string db_default                = 51011;  // Column DEFAULT expression (passed through per-backend).
+  string db_comment                = 51012;  // Column comment.
 }

@@ -60,7 +60,11 @@ FieldKind ToFieldKind(const google::protobuf::FieldDescriptor& field) {
     case FD::CPPTYPE_STRING:
       return field.type() == FD::TYPE_BYTES ? FieldKind::kBytes : FieldKind::kString;
     case FD::CPPTYPE_ENUM:   return FieldKind::kEnum;
-    case FD::CPPTYPE_MESSAGE: return FieldKind::kTimestamp;  // only Timestamp reaches here
+    case FD::CPPTYPE_MESSAGE:
+      if (field.message_type() != nullptr &&
+          field.message_type()->full_name() == "dbddl.UUID")
+        return FieldKind::kUUID;
+      return FieldKind::kTimestamp;  // only Timestamp reaches here
     default:                  return FieldKind::kUnknown;
   }
 }
@@ -99,6 +103,40 @@ std::optional<ColumnIR> BuildColumn(const google::protobuf::FieldDescriptor& fie
     const auto* ed = field.enum_type();
     col.enum_cpp_type = ProtoToCpp(ed->full_name(), ed->file()->package());
   }
+
+  // db_uuid annotation on a bytes field — explicit opt-in.
+  if (field.options().HasExtension(dbddl::db_uuid) &&
+      field.options().GetExtension(dbddl::db_uuid)) {
+    col.field_kind = FieldKind::kUUID;
+    if (!field.options().HasExtension(dbddl::ch_column_type))
+      col.type_clickhouse = "UUID";
+    if (!field.options().HasExtension(dbddl::pg_column_type))
+      col.type_postgres = "UUID";
+  }
+
+  // dbddl.UUID message type — accessor needs .value() to reach the bytes.
+  if (col.field_kind == FieldKind::kUUID &&
+      field.cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE) {
+    col.uuid_via_message = true;
+  }
+
+  col.db_index = field.options().HasExtension(dbddl::db_index) &&
+                 field.options().GetExtension(dbddl::db_index);
+  if (col.db_index) {
+    col.pg_index_using = field.options().HasExtension(dbddl::pg_index_using)
+        ? field.options().GetExtension(dbddl::pg_index_using) : "";
+    col.ch_skip_index_type = field.options().HasExtension(dbddl::ch_skip_index_type)
+        ? field.options().GetExtension(dbddl::ch_skip_index_type) : "";
+    col.ch_skip_index_granularity =
+        field.options().HasExtension(dbddl::ch_skip_index_granularity)
+        ? field.options().GetExtension(dbddl::ch_skip_index_granularity) : 1u;
+  }
+  col.ch_codec = field.options().HasExtension(dbddl::ch_codec)
+      ? field.options().GetExtension(dbddl::ch_codec) : "";
+  col.db_default = field.options().HasExtension(dbddl::db_default)
+      ? field.options().GetExtension(dbddl::db_default) : "";
+  col.db_comment = field.options().HasExtension(dbddl::db_comment)
+      ? field.options().GetExtension(dbddl::db_comment) : "";
 
   return col;
 }
@@ -141,12 +179,30 @@ void VisitMessage(const google::protobuf::Descriptor& message,
     base.ch_order_by = opts.HasExtension(dbddl::ch_order_by)
         ? opts.GetExtension(dbddl::ch_order_by)
         : "";
+    base.ch_ttl = opts.HasExtension(dbddl::ch_ttl)
+        ? opts.GetExtension(dbddl::ch_ttl) : "";
+    base.ch_settings = opts.HasExtension(dbddl::ch_settings)
+        ? opts.GetExtension(dbddl::ch_settings) : "";
+    base.ch_sample_by = opts.HasExtension(dbddl::ch_sample_by)
+        ? opts.GetExtension(dbddl::ch_sample_by) : "";
+    base.ts_compress_after = opts.HasExtension(dbddl::ts_compress_after)
+        ? opts.GetExtension(dbddl::ts_compress_after) : "";
+    base.ts_compress_segmentby = opts.HasExtension(dbddl::ts_compress_segmentby)
+        ? opts.GetExtension(dbddl::ts_compress_segmentby) : "";
+    base.ts_compress_orderby = opts.HasExtension(dbddl::ts_compress_orderby)
+        ? opts.GetExtension(dbddl::ts_compress_orderby) : "";
+    base.ts_retention = opts.HasExtension(dbddl::ts_retention)
+        ? opts.GetExtension(dbddl::ts_retention) : "";
     base.ts_time_column = opts.HasExtension(dbddl::ts_time_column)
         ? opts.GetExtension(dbddl::ts_time_column)
         : "";
     base.ts_chunk_interval = opts.HasExtension(dbddl::ts_chunk_interval)
         ? opts.GetExtension(dbddl::ts_chunk_interval)
         : "";
+    base.uuid_pk = opts.HasExtension(dbddl::db_uuid_pk) &&
+                   opts.GetExtension(dbddl::db_uuid_pk);
+    base.auto_pk_name = (!base.uuid_pk && opts.HasExtension(dbddl::db_auto_pk))
+        ? opts.GetExtension(dbddl::db_auto_pk) : "";
     base.proto_cpp_type = ProtoToCpp(message.full_name(), message.file()->package());
     base.proto_include  = ProtoToPbHeader(message.file()->name());
 

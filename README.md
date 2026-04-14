@@ -77,16 +77,33 @@ SELECT create_hypertable('trades', by_range('timestamp'));
 | `ch_order_by`        | `ORDER BY` expression (**required** for CH tables) |
 | `ts_table`           | TimescaleDB table name (enables TS output)         |
 | `ts_time_column`     | Hypertable time column (**required** for TS tables)|
-| `ts_chunk_interval`  | Chunk time interval (informational)                |
+| `ts_chunk_interval`  | Chunk time interval passed to `by_range()`         |
+| `ch_ttl`             | ClickHouse TTL expression, e.g. `timestamp + INTERVAL 3 MONTH`       |
+| `ch_sample_by`       | ClickHouse `SAMPLE BY` expression                                     |
+| `ch_settings`        | ClickHouse `SETTINGS` clause, e.g. `index_granularity = 8192`        |
+| `ts_compress_after`  | Enable TimescaleDB compression policy, e.g. `7 days`                 |
+| `ts_compress_segmentby` | `timescaledb.compress_segmentby` column(s), e.g. `symbol`         |
+| `ts_compress_orderby`   | `timescaledb.compress_orderby` expression, e.g. `timestamp DESC`  |
+| `ts_retention`       | TimescaleDB retention policy interval, e.g. `1 year`                 |
+| `db_auto_pk`         | Add a named integer identity PK column (PG: `BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY`, CH: `UInt64`) |
+| `db_uuid_pk`         | Add an `id UUID` PK column with a random default (`gen_random_uuid()` / `generateUUIDv4()`) |
 
 ### Field options
 
-| Option           | Description                                          |
-|------------------|------------------------------------------------------|
-| `ch_column_type` | Override ClickHouse column type                      |
-| `pg_column_type` | Override PostgreSQL/TimescaleDB column type          |
-| `db_nullable`    | Override nullability (`true`/`false`)                |
-| `db_name`        | Override column name in the output DDL               |
+| Option                      | Description                                                                 |
+|-----------------------------|-----------------------------------------------------------------------------|
+| `ch_column_type`            | Override ClickHouse column type                                             |
+| `pg_column_type`            | Override PostgreSQL/TimescaleDB column type                                 |
+| `db_nullable`               | Override nullability (`true`/`false`)                                       |
+| `db_name`                   | Override column name in the output DDL                                      |
+| `db_uuid`                   | Treat a `bytes` field as a 128-bit UUID (`UUID` type in both backends)      |
+| `db_index`                  | Create an index on this column                                              |
+| `pg_index_using`            | PG index method: `hash`, `brin`, `gin`, etc. (default: `btree`)            |
+| `ch_skip_index_type`        | CH data-skipping index type: `minmax`, `set(N)`, `bloom_filter` (default: `minmax`) |
+| `ch_skip_index_granularity` | CH skip index granularity (default: `1`)                             |
+| `ch_codec`                  | CH column codec(s), e.g. `Delta, LZ4` or `ZSTD(1)`                  |
+| `db_default`                | Column `DEFAULT` expression (passed through as-is to both backends)  |
+| `db_comment`                | Column comment (CH: inline `COMMENT`; PG: `COMMENT ON COLUMN`)      |
 
 ## Proto3 type mapping
 

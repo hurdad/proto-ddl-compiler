@@ -14,6 +14,12 @@ bool IsTimestamp(const google::protobuf::FieldDescriptor& field) {
          field.message_type()->full_name() == "google.protobuf.Timestamp";
 }
 
+bool IsUUID(const google::protobuf::FieldDescriptor& field) {
+  return field.cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE &&
+         field.message_type() != nullptr &&
+         field.message_type()->full_name() == "dbddl.UUID";
+}
+
 }  // namespace
 
 std::optional<MappedTypes> MapFieldTypes(const google::protobuf::FieldDescriptor& field) {
@@ -54,6 +60,10 @@ std::optional<MappedTypes> MapFieldTypes(const google::protobuf::FieldDescriptor
     case FD::CPPTYPE_MESSAGE:
       if (IsTimestamp(field)) {
         mapped = {"DateTime64(3)", "TIMESTAMPTZ"};
+        break;
+      }
+      if (IsUUID(field)) {
+        mapped = {"UUID", "UUID"};
         break;
       }
       return std::nullopt;

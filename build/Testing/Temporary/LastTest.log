@@ -1,0 +1,259 @@
+Start testing: Apr 14 00:15 EDT
+----------------------------------------------------------
+1/1 Testing: dbddl_tests
+1/1 Test: dbddl_tests
+Command: "/home/user/git/proto-ddl-compiler/build/dbddl_tests"
+Directory: /home/user/git/proto-ddl-compiler/build
+"dbddl_tests" start time: Apr 14 00:15 EDT
+Output:
+----------------------------------------------------------
+Running main() from ./googletest/src/gtest_main.cc
+[==========] Running 107 tests from 7 test suites.
+[----------] Global test environment set-up.
+[----------] 12 tests from MapperTest
+[ RUN      ] MapperTest.Int32
+[       OK ] MapperTest.Int32 (0 ms)
+[ RUN      ] MapperTest.Int64
+[       OK ] MapperTest.Int64 (0 ms)
+[ RUN      ] MapperTest.UInt32
+[       OK ] MapperTest.UInt32 (0 ms)
+[ RUN      ] MapperTest.UInt64
+[       OK ] MapperTest.UInt64 (0 ms)
+[ RUN      ] MapperTest.Float
+[       OK ] MapperTest.Float (0 ms)
+[ RUN      ] MapperTest.Double
+[       OK ] MapperTest.Double (0 ms)
+[ RUN      ] MapperTest.Bool
+[       OK ] MapperTest.Bool (0 ms)
+[ RUN      ] MapperTest.String
+[       OK ] MapperTest.String (0 ms)
+[ RUN      ] MapperTest.Bytes
+[       OK ] MapperTest.Bytes (0 ms)
+[ RUN      ] MapperTest.Timestamp
+[       OK ] MapperTest.Timestamp (0 ms)
+[ RUN      ] MapperTest.Enum
+[       OK ] MapperTest.Enum (0 ms)
+[ RUN      ] MapperTest.RepeatedInt32
+[       OK ] MapperTest.RepeatedInt32 (0 ms)
+[----------] 12 tests from MapperTest (0 ms total)
+
+[----------] 4 tests from ValidateClickHouseTest
+[ RUN      ] ValidateClickHouseTest.ValidTable
+[       OK ] ValidateClickHouseTest.ValidTable (0 ms)
+[ RUN      ] ValidateClickHouseTest.MissingOrderBy
+[       OK ] ValidateClickHouseTest.MissingOrderBy (0 ms)
+[ RUN      ] ValidateClickHouseTest.MultipleTablesOneInvalid
+[       OK ] ValidateClickHouseTest.MultipleTablesOneInvalid (0 ms)
+[ RUN      ] ValidateClickHouseTest.EmptyInput
+[       OK ] ValidateClickHouseTest.EmptyInput (0 ms)
+[----------] 4 tests from ValidateClickHouseTest (0 ms total)
+
+[----------] 5 tests from ValidateTimescaleTest
+[ RUN      ] ValidateTimescaleTest.ValidTable
+[       OK ] ValidateTimescaleTest.ValidTable (0 ms)
+[ RUN      ] ValidateTimescaleTest.MissingTimeColumn
+[       OK ] ValidateTimescaleTest.MissingTimeColumn (0 ms)
+[ RUN      ] ValidateTimescaleTest.TimeColumnNotInSchema
+[       OK ] ValidateTimescaleTest.TimeColumnNotInSchema (0 ms)
+[ RUN      ] ValidateTimescaleTest.NullableTimeColumn
+[       OK ] ValidateTimescaleTest.NullableTimeColumn (0 ms)
+[ RUN      ] ValidateTimescaleTest.EmptyInput
+[       OK ] ValidateTimescaleTest.EmptyInput (0 ms)
+[----------] 5 tests from ValidateTimescaleTest (0 ms total)
+
+[----------] 28 tests from ClickHouseRendererTest
+[ RUN      ] ClickHouseRendererTest.EmptyInput
+[       OK ] ClickHouseRendererTest.EmptyInput (0 ms)
+[ RUN      ] ClickHouseRendererTest.ContainsTableName
+[       OK ] ClickHouseRendererTest.ContainsTableName (0 ms)
+[ RUN      ] ClickHouseRendererTest.ContainsEngine
+[       OK ] ClickHouseRendererTest.ContainsEngine (0 ms)
+[ RUN      ] ClickHouseRendererTest.ContainsPartitionBy
+[       OK ] ClickHouseRendererTest.ContainsPartitionBy (0 ms)
+[ RUN      ] ClickHouseRendererTest.ContainsOrderBy
+[       OK ] ClickHouseRendererTest.ContainsOrderBy (0 ms)
+[ RUN      ] ClickHouseRendererTest.NullableColumnWrapped
+[       OK ] ClickHouseRendererTest.NullableColumnWrapped (0 ms)
+[ RUN      ] ClickHouseRendererTest.NonNullableColumnNotWrapped
+[       OK ] ClickHouseRendererTest.NonNullableColumnNotWrapped (0 ms)
+[ RUN      ] ClickHouseRendererTest.NoPartitionBy
+[       OK ] ClickHouseRendererTest.NoPartitionBy (0 ms)
+[ RUN      ] ClickHouseRendererTest.MultipleTables
+[       OK ] ClickHouseRendererTest.MultipleTables (0 ms)
+[ RUN      ] ClickHouseRendererTest.SkipIndexDefaultMinmax
+[       OK ] ClickHouseRendererTest.SkipIndexDefaultMinmax (0 ms)
+[ RUN      ] ClickHouseRendererTest.SkipIndexCustomType
+[       OK ] ClickHouseRendererTest.SkipIndexCustomType (0 ms)
+[ RUN      ] ClickHouseRendererTest.SkipIndexInsideTableDefinition
+[       OK ] ClickHouseRendererTest.SkipIndexInsideTableDefinition (0 ms)
+[ RUN      ] ClickHouseRendererTest.LastColumnCommaWhenIndexPresent
+[       OK ] ClickHouseRendererTest.LastColumnCommaWhenIndexPresent (0 ms)
+[ RUN      ] ClickHouseRendererTest.NoSkipIndexWhenNotSet
+[       OK ] ClickHouseRendererTest.NoSkipIndexWhenNotSet (0 ms)
+[ RUN      ] ClickHouseRendererTest.AutoPkEmitsUInt64First
+[       OK ] ClickHouseRendererTest.AutoPkEmitsUInt64First (0 ms)
+[ RUN      ] ClickHouseRendererTest.UuidPkEmitsUUIDWithDefault
+[       OK ] ClickHouseRendererTest.UuidPkEmitsUUIDWithDefault (0 ms)
+[ RUN      ] ClickHouseRendererTest.UuidPkOverridesAutoPk
+[       OK ] ClickHouseRendererTest.UuidPkOverridesAutoPk (0 ms)
+[ RUN      ] ClickHouseRendererTest.TtlEmittedAfterOrderBy
+[       OK ] ClickHouseRendererTest.TtlEmittedAfterOrderBy (0 ms)
+[ RUN      ] ClickHouseRendererTest.NoTtlWhenNotSet
+[       OK ] ClickHouseRendererTest.NoTtlWhenNotSet (0 ms)
+[ RUN      ] ClickHouseRendererTest.NoPkWhenNotSet
+[       OK ] ClickHouseRendererTest.NoPkWhenNotSet (0 ms)
+[ RUN      ] ClickHouseRendererTest.ColumnCodecEmitted
+[       OK ] ClickHouseRendererTest.ColumnCodecEmitted (0 ms)
+[ RUN      ] ClickHouseRendererTest.NoCodecWhenNotSet
+[       OK ] ClickHouseRendererTest.NoCodecWhenNotSet (0 ms)
+[ RUN      ] ClickHouseRendererTest.ColumnDefaultEmitted
+[       OK ] ClickHouseRendererTest.ColumnDefaultEmitted (0 ms)
+[ RUN      ] ClickHouseRendererTest.ColumnCommentEmitted
+[       OK ] ClickHouseRendererTest.ColumnCommentEmitted (0 ms)
+[ RUN      ] ClickHouseRendererTest.SampleByEmittedAfterOrderBy
+[       OK ] ClickHouseRendererTest.SampleByEmittedAfterOrderBy (0 ms)
+[ RUN      ] ClickHouseRendererTest.SampleByBeforeTtl
+[       OK ] ClickHouseRendererTest.SampleByBeforeTtl (0 ms)
+[ RUN      ] ClickHouseRendererTest.SettingsEmittedLast
+[       OK ] ClickHouseRendererTest.SettingsEmittedLast (0 ms)
+[ RUN      ] ClickHouseRendererTest.NoSettingsWhenNotSet
+[       OK ] ClickHouseRendererTest.NoSettingsWhenNotSet (0 ms)
+[----------] 28 tests from ClickHouseRendererTest (0 ms total)
+
+[----------] 28 tests from TimescaleRendererTest
+[ RUN      ] TimescaleRendererTest.EmptyInput
+[       OK ] TimescaleRendererTest.EmptyInput (0 ms)
+[ RUN      ] TimescaleRendererTest.ContainsTableName
+[       OK ] TimescaleRendererTest.ContainsTableName (0 ms)
+[ RUN      ] TimescaleRendererTest.ContainsHypertableCall
+[       OK ] TimescaleRendererTest.ContainsHypertableCall (0 ms)
+[ RUN      ] TimescaleRendererTest.NullableColumnNoNotNull
+[       OK ] TimescaleRendererTest.NullableColumnNoNotNull (0 ms)
+[ RUN      ] TimescaleRendererTest.NonNullableColumnHasNotNull
+[       OK ] TimescaleRendererTest.NonNullableColumnHasNotNull (0 ms)
+[ RUN      ] TimescaleRendererTest.EnumCreateTypeEmitted
+[       OK ] TimescaleRendererTest.EnumCreateTypeEmitted (0 ms)
+[ RUN      ] TimescaleRendererTest.EnumCreateTypeBeforeTable
+[       OK ] TimescaleRendererTest.EnumCreateTypeBeforeTable (0 ms)
+[ RUN      ] TimescaleRendererTest.NoEnumTypesWhenEmpty
+[       OK ] TimescaleRendererTest.NoEnumTypesWhenEmpty (0 ms)
+[ RUN      ] TimescaleRendererTest.ChunkInterval
+[       OK ] TimescaleRendererTest.ChunkInterval (0 ms)
+[ RUN      ] TimescaleRendererTest.NoChunkInterval
+[       OK ] TimescaleRendererTest.NoChunkInterval (0 ms)
+[ RUN      ] TimescaleRendererTest.MultipleTables
+[       OK ] TimescaleRendererTest.MultipleTables (0 ms)
+[ RUN      ] TimescaleRendererTest.IndexDefaultBtree
+[       OK ] TimescaleRendererTest.IndexDefaultBtree (0 ms)
+[ RUN      ] TimescaleRendererTest.IndexWithMethod
+[       OK ] TimescaleRendererTest.IndexWithMethod (0 ms)
+[ RUN      ] TimescaleRendererTest.IndexAfterHypertable
+[       OK ] TimescaleRendererTest.IndexAfterHypertable (0 ms)
+[ RUN      ] TimescaleRendererTest.NoIndexWhenNotSet
+[       OK ] TimescaleRendererTest.NoIndexWhenNotSet (0 ms)
+[ RUN      ] TimescaleRendererTest.AutoPkEmitsBigintIdentityFirst
+[       OK ] TimescaleRendererTest.AutoPkEmitsBigintIdentityFirst (0 ms)
+[ RUN      ] TimescaleRendererTest.UuidPkEmitsUUIDWithDefault
+[       OK ] TimescaleRendererTest.UuidPkEmitsUUIDWithDefault (0 ms)
+[ RUN      ] TimescaleRendererTest.NoPkWhenNotSet
+[       OK ] TimescaleRendererTest.NoPkWhenNotSet (0 ms)
+[ RUN      ] TimescaleRendererTest.ColumnDefaultEmitted
+[       OK ] TimescaleRendererTest.ColumnDefaultEmitted (0 ms)
+[ RUN      ] TimescaleRendererTest.ColumnDefaultBeforeNotNull
+[       OK ] TimescaleRendererTest.ColumnDefaultBeforeNotNull (0 ms)
+[ RUN      ] TimescaleRendererTest.ColumnCommentEmitsCommentOn
+[       OK ] TimescaleRendererTest.ColumnCommentEmitsCommentOn (0 ms)
+[ RUN      ] TimescaleRendererTest.ColumnCommentBeforeHypertable
+[       OK ] TimescaleRendererTest.ColumnCommentBeforeHypertable (0 ms)
+[ RUN      ] TimescaleRendererTest.CompressionAlterTableEmitted
+[       OK ] TimescaleRendererTest.CompressionAlterTableEmitted (0 ms)
+[ RUN      ] TimescaleRendererTest.CompressionPolicyEmittedWhenAfterSet
+[       OK ] TimescaleRendererTest.CompressionPolicyEmittedWhenAfterSet (0 ms)
+[ RUN      ] TimescaleRendererTest.CompressionPolicyNotEmittedWithoutAfter
+[       OK ] TimescaleRendererTest.CompressionPolicyNotEmittedWithoutAfter (0 ms)
+[ RUN      ] TimescaleRendererTest.NoCompressionWhenNotSet
+[       OK ] TimescaleRendererTest.NoCompressionWhenNotSet (0 ms)
+[ RUN      ] TimescaleRendererTest.RetentionPolicyEmitted
+[       OK ] TimescaleRendererTest.RetentionPolicyEmitted (0 ms)
+[ RUN      ] TimescaleRendererTest.NoRetentionWhenNotSet
+[       OK ] TimescaleRendererTest.NoRetentionWhenNotSet (0 ms)
+[----------] 28 tests from TimescaleRendererTest (0 ms total)
+
+[----------] 17 tests from CHInsertTest
+[ RUN      ] CHInsertTest.EmptyTablesReturnsEmpty
+[       OK ] CHInsertTest.EmptyTablesReturnsEmpty (0 ms)
+[ RUN      ] CHInsertTest.HeaderIncludesProtoAndClickHouse
+[       OK ] CHInsertTest.HeaderIncludesProtoAndClickHouse (0 ms)
+[ RUN      ] CHInsertTest.HeaderDeclaresFunctionSignature
+[       OK ] CHInsertTest.HeaderDeclaresFunctionSignature (0 ms)
+[ RUN      ] CHInsertTest.SourceIncludesHeader
+[       OK ] CHInsertTest.SourceIncludesHeader (0 ms)
+[ RUN      ] CHInsertTest.SourceHasEarlyReturnOnEmpty
+[       OK ] CHInsertTest.SourceHasEarlyReturnOnEmpty (0 ms)
+[ RUN      ] CHInsertTest.TimestampColumnUsesDateTime64WithPrecision
+[       OK ] CHInsertTest.TimestampColumnUsesDateTime64WithPrecision (0 ms)
+[ RUN      ] CHInsertTest.TimestampAppendConvertsSecondsAndNanos
+[       OK ] CHInsertTest.TimestampAppendConvertsSecondsAndNanos (0 ms)
+[ RUN      ] CHInsertTest.EnumColumnUsesLowCardinality
+[       OK ] CHInsertTest.EnumColumnUsesLowCardinality (0 ms)
+[ RUN      ] CHInsertTest.EnumAppendCallsNameFunction
+[       OK ] CHInsertTest.EnumAppendCallsNameFunction (0 ms)
+[ RUN      ] CHInsertTest.NullableColumnUsesNullableT
+[       OK ] CHInsertTest.NullableColumnUsesNullableT (0 ms)
+[ RUN      ] CHInsertTest.NullableAppendChecksHasField
+[       OK ] CHInsertTest.NullableAppendChecksHasField (0 ms)
+[ RUN      ] CHInsertTest.BlockAppendColumnForEachColumn
+[       OK ] CHInsertTest.BlockAppendColumnForEachColumn (0 ms)
+[ RUN      ] CHInsertTest.ClientInsertCallWithTableName
+[       OK ] CHInsertTest.ClientInsertCallWithTableName (0 ms)
+[ RUN      ] CHInsertTest.UuidColumnUsesColumnUUID
+[       OK ] CHInsertTest.UuidColumnUsesColumnUUID (0 ms)
+[ RUN      ] CHInsertTest.UuidAppendUsesMempyAndUuidStruct
+[       OK ] CHInsertTest.UuidAppendUsesMempyAndUuidStruct (0 ms)
+[ RUN      ] CHInsertTest.UuidViaMessageAccessesValueField
+[       OK ] CHInsertTest.UuidViaMessageAccessesValueField (0 ms)
+[ RUN      ] CHInsertTest.RepeatedColumnUsesArrayT
+[       OK ] CHInsertTest.RepeatedColumnUsesArrayT (0 ms)
+[----------] 17 tests from CHInsertTest (0 ms total)
+
+[----------] 13 tests from PGInsertTest
+[ RUN      ] PGInsertTest.EmptyTablesReturnsEmpty
+[       OK ] PGInsertTest.EmptyTablesReturnsEmpty (0 ms)
+[ RUN      ] PGInsertTest.HeaderIncludesProtoAndPqxx
+[       OK ] PGInsertTest.HeaderIncludesProtoAndPqxx (0 ms)
+[ RUN      ] PGInsertTest.HeaderDeclaresFunctionSignature
+[       OK ] PGInsertTest.HeaderDeclaresFunctionSignature (0 ms)
+[ RUN      ] PGInsertTest.SourceIncludesHeader
+[       OK ] PGInsertTest.SourceIncludesHeader (0 ms)
+[ RUN      ] PGInsertTest.SourceHasStreamToTable
+[       OK ] PGInsertTest.SourceHasStreamToTable (0 ms)
+[ RUN      ] PGInsertTest.SourceListsAllColumns
+[       OK ] PGInsertTest.SourceListsAllColumns (0 ms)
+[ RUN      ] PGInsertTest.TimestampUsesChrono
+[       OK ] PGInsertTest.TimestampUsesChrono (0 ms)
+[ RUN      ] PGInsertTest.EnumCallsNameFunction
+[       OK ] PGInsertTest.EnumCallsNameFunction (0 ms)
+[ RUN      ] PGInsertTest.NullableUsesOptional
+[       OK ] PGInsertTest.NullableUsesOptional (0 ms)
+[ RUN      ] PGInsertTest.StreamCommitCalled
+[       OK ] PGInsertTest.StreamCommitCalled (0 ms)
+[ RUN      ] PGInsertTest.UuidColumnBuildsHexString
+[       OK ] PGInsertTest.UuidColumnBuildsHexString (0 ms)
+[ RUN      ] PGInsertTest.UuidViaMessageAccessesValueField
+[       OK ] PGInsertTest.UuidViaMessageAccessesValueField (0 ms)
+[ RUN      ] PGInsertTest.RepeatedColumnBuildsArrayLiteral
+[       OK ] PGInsertTest.RepeatedColumnBuildsArrayLiteral (0 ms)
+[----------] 13 tests from PGInsertTest (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 107 tests from 7 test suites ran. (1 ms total)
+[  PASSED  ] 107 tests.
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"dbddl_tests" end time: Apr 14 00:15 EDT
+"dbddl_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Apr 14 00:15 EDT

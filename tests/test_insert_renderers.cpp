@@ -124,6 +124,32 @@ TEST(CHInsertTest, ClientInsertCallWithTableName) {
   EXPECT_NE(f.source.find("client.Insert(\"trades\""), std::string::npos);
 }
 
+TEST(CHInsertTest, UuidColumnUsesColumnUUID) {
+  TableIR t = MakeTradeTable();
+  t.columns.push_back(MakeCol("trade_id", "trade_id", FieldKind::kUUID, "UUID", "UUID"));
+  auto f = RenderClickHouseInsert({t}, "example_trade");
+  EXPECT_NE(f.source.find("ColumnUUID"), std::string::npos);
+  EXPECT_NE(f.source.find("#include <clickhouse/columns/uuid.h>"), std::string::npos);
+}
+
+TEST(CHInsertTest, UuidAppendUsesMempyAndUuidStruct) {
+  TableIR t = MakeTradeTable();
+  t.columns.push_back(MakeCol("trade_id", "trade_id", FieldKind::kUUID, "UUID", "UUID"));
+  auto f = RenderClickHouseInsert({t}, "example_trade");
+  EXPECT_NE(f.source.find("memcpy("), std::string::npos);
+  EXPECT_NE(f.source.find("clickhouse::UUID"), std::string::npos);
+  EXPECT_NE(f.source.find("row.trade_id()"), std::string::npos);
+}
+
+TEST(CHInsertTest, UuidViaMessageAccessesValueField) {
+  TableIR t = MakeTradeTable();
+  ColumnIR col = MakeCol("trade_id", "trade_id", FieldKind::kUUID, "UUID", "UUID");
+  col.uuid_via_message = true;
+  t.columns.push_back(col);
+  auto f = RenderClickHouseInsert({t}, "example_trade");
+  EXPECT_NE(f.source.find("row.trade_id().value()"), std::string::npos);
+}
+
 TEST(CHInsertTest, RepeatedColumnUsesArrayT) {
   TableIR t = MakeTradeTable();
   t.columns.push_back(MakeCol("tags", "tags", FieldKind::kString,
@@ -197,6 +223,24 @@ TEST(PGInsertTest, StreamCommitCalled) {
   auto f = RenderTimescaleInsert({MakeTradeTable()}, "example_trade");
   EXPECT_NE(f.source.find("stream.complete()"), std::string::npos);
   EXPECT_NE(f.source.find("txn.commit()"), std::string::npos);
+}
+
+TEST(PGInsertTest, UuidColumnBuildsHexString) {
+  TableIR t = MakeTradeTable();
+  t.columns.push_back(MakeCol("trade_id", "trade_id", FieldKind::kUUID, "UUID", "UUID"));
+  auto f = RenderTimescaleInsert({t}, "example_trade");
+  EXPECT_NE(f.source.find("snprintf"), std::string::npos);
+  EXPECT_NE(f.source.find("%02x%02x%02x%02x-%02x%02x"), std::string::npos);
+  EXPECT_NE(f.source.find("row.trade_id()"), std::string::npos);
+}
+
+TEST(PGInsertTest, UuidViaMessageAccessesValueField) {
+  TableIR t = MakeTradeTable();
+  ColumnIR col = MakeCol("trade_id", "trade_id", FieldKind::kUUID, "UUID", "UUID");
+  col.uuid_via_message = true;
+  t.columns.push_back(col);
+  auto f = RenderTimescaleInsert({t}, "example_trade");
+  EXPECT_NE(f.source.find("row.trade_id().value()"), std::string::npos);
 }
 
 TEST(PGInsertTest, RepeatedColumnBuildsArrayLiteral) {
