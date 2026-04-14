@@ -5,10 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Test Commands
 
 ```bash
+# First-time clone: initialise the clickhouse-cpp submodule
+git submodule update --init
+
 # Configure
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 
-# Build everything (plugin + tests)
+# Build everything (plugin + unit tests + generated insert compile test)
 cmake --build build -j$(nproc)
 
 # Run all tests
@@ -32,14 +35,16 @@ This is a `protoc` plugin. `protoc` invokes `protoc-gen-dbddl` via stdin/stdout 
 ```
 .proto file
   → protoc (parses, resolves imports, builds FileDescriptor)
-    → DbddlGenerator::Generate()          # generator.cpp
-      → ExtractTablesFromFile()            # descriptor_utils.cpp
-          BuildColumn() per field          # mapper.cpp: type mapping
-      → ValidateClickHouseTables()         # validate.cpp
-      → ValidateTimescaleTables()          # validate.cpp
-      → RenderClickHouseDDL()              # backends/clickhouse_renderer.cpp
-      → RenderTimescaleDDL()              # backends/timescale_renderer.cpp
-      → WriteFile() × 2                   # generator.cpp
+    → DbddlGenerator::Generate()              # generator.cpp
+      → ExtractTablesFromFile()               # descriptor_utils.cpp
+          BuildColumn() per field             # mapper.cpp: type mapping
+      → ValidateClickHouseTables()            # validate.cpp
+      → ValidateTimescaleTables()             # validate.cpp
+      → RenderClickHouseDDL()                 # backends/clickhouse_renderer.cpp
+      → RenderClickHouseInsert()              # backends/clickhouse_insert_renderer.cpp
+      → RenderTimescaleDDL()                  # backends/timescale_renderer.cpp
+      → RenderTimescaleInsert()               # backends/timescale_insert_renderer.cpp
+      → WriteFile() × 6                       # generator.cpp (.sql + .h + .cc per backend)
 ```
 
 ### IR (Intermediate Representation)
@@ -52,12 +57,22 @@ This is a `protoc` plugin. `protoc` invokes `protoc-gen-dbddl` via stdin/stdout 
 
 ### Nullability (proto3)
 
-In proto3, `is_required()` is always false. Nullability defaults to `has_presence() && !is_required()` — so implicit singular fields are `NOT NULL`, while `optional`-qualified fields are nullable. The `db_nullable` field option always overrides.
+In proto3, `is_required()` is always false. Nullability defaults to `has_presence() && !is_required()` — so implicit singular fields are `NOT NULL`, while `optional`-qualified fields are nullable. Message fields (e.g. `google.protobuf.Timestamp`, `dbddl.UUID`) always have presence and are therefore nullable unless overridden with `db_nullable = false`. The `db_nullable` field option always overrides.
+
+### Proto3 optional support
+
+`DbddlGenerator::GetSupportedFeatures()` advertises `FEATURE_PROTO3_OPTIONAL`. Without this, protoc rejects any proto3 file that uses the `optional` keyword.
 
 ### Output
 
-Only backend files with at least one annotated table are written. A proto with only `ch_table` annotations produces only a `.clickhouse.sql` file.
+Only backend files with at least one annotated table are written. A proto with only `ch_table` annotations produces only `.clickhouse.sql`, `.ch_insert.h`, and `.ch_insert.cc`.
 
 ### Tests
 
 Tests live in `tests/`. The mapper tests use a dedicated `tests/mapper_test_types.proto` (compiled by CMake alongside the tests) to obtain real `FieldDescriptor` instances. Validate and renderer tests construct `TableIR`/`ColumnIR` structs directly — no protobuf involvement.
+
+The `generated_inserts` CMake target provides a compile-time correctness check: it runs the plugin against `proto/example_trade.proto` and `proto/kitchen_sink.proto` at build time and compiles the generated `.cc` files as a static library. A build failure means the generator produced invalid C++. Add new protos to this target via the `generate_insert_code()` CMake helper in `CMakeLists.txt`.
+
+### Third-party dependencies
+
+`third_party/clickhouse-cpp` is a git submodule. CMake prefers a system install of `clickhouse-cpp` (`find_library` + `find_path`); if not found it falls back to the submodule. `libpqxx` is expected to be installed system-wide and is located via `pkg-config`.

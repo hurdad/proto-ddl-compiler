@@ -129,13 +129,14 @@ SELECT create_hypertable('trades', by_range('timestamp'));
 | `float`              | `Float32`    | `REAL`            |
 | `double`             | `Float64`    | `DOUBLE PRECISION`|
 | `bool`               | `Bool`       | `BOOLEAN`         |
-| `string`/`bytes`     | `String`     | `TEXT`            |
+| `string`             | `String`     | `TEXT`            |
+| `bytes`              | `String`     | `BYTEA`           |
 | `google.protobuf.Timestamp` | `DateTime64(3)` | `TIMESTAMPTZ` |
 | `repeated T`         | `Array(T)`   | `T[]`             |
 | `enum`               | `LowCardinality(String)` | native `ENUM` type |
 | `dbddl.UUID`         | `UUID`       | `UUID`            |
 
-Nullability defaults to `false` for implicit proto3 fields and `true` for `optional`-qualified fields. Use the `db_nullable` option to override.
+Nullability defaults to `false` for implicit proto3 fields and `true` for `optional`-qualified fields. Message fields (`google.protobuf.Timestamp`, `dbddl.UUID`) always have presence and are nullable by default — use `db_nullable = false` to make them `NOT NULL`. The `db_nullable` option always overrides.
 
 ## Requirements
 
@@ -143,20 +144,26 @@ Nullability defaults to `false` for implicit proto3 fields and `true` for `optio
 - C++20 compiler (GCC 11+ or Clang 14+)
 - `libprotobuf` / `libprotoc` (protobuf 3.x)
 - `protoc` on `$PATH`
+- `libpqxx` 7.x (for the TimescaleDB C++ insert compile test)
 
 On Ubuntu/Debian:
 ```bash
-apt install protobuf-compiler libprotobuf-dev
+apt install protobuf-compiler libprotobuf-dev libpqxx-dev
 ```
+
+`clickhouse-cpp` is bundled as a git submodule (`third_party/clickhouse-cpp`) and built automatically if not found on the system.
 
 ## Build
 
 ```bash
+# First-time clone: initialise the clickhouse-cpp submodule
+git submodule update --init
+
 cmake -S . -B build
 cmake --build build
 ```
 
-The plugin binary is `build/protoc-gen-dbddl`.
+The plugin binary is `build/protoc-gen-dbddl`. The build also compiles a `generated_inserts` static library that runs the plugin against the bundled example protos and compiles the output — a build failure here means the generator produced invalid C++.
 
 ## Install
 
@@ -224,11 +231,11 @@ void InsertTrades(
 }  // namespace dbddl
 ```
 
-The generated source builds typed column objects (`ColumnInt64`, `ColumnString`, `ColumnFloat64`, `ColumnInt32`, `ColumnLowCardinalityT<ColumnString>`, `ColumnNullableT<ColumnUUID>`) and appends all rows before calling `client.Insert("trades", block)`.
+The generated source builds typed column objects (`ColumnDateTime64`, `ColumnString`, `ColumnFloat64`, `ColumnInt32`, `ColumnLowCardinalityT<clickhouse::ColumnString>`, `ColumnNullableT<clickhouse::ColumnUUID>`) and appends all rows before calling `client.Insert("trades", block)`.
 
 ### TimescaleDB
 
-Uses [`libpqxx`](https://github.com/jtv/libpqxx) with binary streaming.
+Uses [`libpqxx`](https://github.com/jtv/libpqxx) 7.x with `pqxx::stream_to`.
 
 **`example_trade.pg_insert.h`**
 ```cpp
@@ -259,10 +266,10 @@ The generated source opens a `pqxx::work` transaction, streams rows via `pqxx::s
 
 | Field kind | ClickHouse | TimescaleDB |
 |---|---|---|
-| Timestamp | `ColumnDateTime64(N)` with `seconds()*mult + nanos()/div` | `std::chrono::system_clock::from_time_t` + `nanoseconds()` |
-| Enum | `ColumnLowCardinalityT<ColumnString>` + `EnumType_Name(row.field())` | `EnumType_Name(row.field())` string |
-| Nullable | `ColumnNullableT<ColT>` + `has_field()` / `std::nullopt` | `std::optional<T>` + `has_field()` ternary |
-| Repeated | `ColumnArrayT<ColT>` + `AppendAsColumn` | PostgreSQL array literal `{v1,v2,...}` |
+| Timestamp | `ColumnDateTime64(N)` with `seconds()*mult + nanos()/div` | `gmtime_r` + `strftime` formatted as `"YYYY-MM-DD HH:MM:SS.nnnnnnnnn+00"` |
+| Enum | `ColumnLowCardinalityT<clickhouse::ColumnString>` + `EnumType_Name(row.field())` | `EnumType_Name(row.field())` string |
+| Nullable | `ColumnNullableT<clickhouse::ColT>` + `has_field()` / `std::nullopt` | `std::optional<T>` + `has_field()` ternary |
+| Repeated | `ColumnArrayT<clickhouse::ColT>` + `AppendAsColumn` | PostgreSQL array literal `{v1,v2,...}` |
 | `dbddl.UUID` | `ColumnUUID` + `memcpy` of 16 bytes into `{first, second}` | formatted UUID string via `snprintf` |
 
 ### Additional runtime dependencies
