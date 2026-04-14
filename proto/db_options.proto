@@ -1,0 +1,23 @@
+syntax = "proto2";
+
+package dbddl;
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MessageOptions {
+  optional string ch_table = 50001;
+  optional string ch_engine = 50002;
+  optional string ch_partition_by = 50003;
+  optional string ch_order_by = 50004;
+
+  optional string ts_table = 50005;
+  optional string ts_time_column = 50006;
+  optional string ts_chunk_interval = 50007;
+}
+
+extend google.protobuf.FieldOptions {
+  optional string ch_column_type = 51001;
+  optional string pg_column_type = 51002;
+  optional bool db_nullable = 51003;
+  optional string db_name = 51004;
+}
