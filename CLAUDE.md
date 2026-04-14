@@ -59,6 +59,20 @@ This is a `protoc` plugin. `protoc` invokes `protoc-gen-dbddl` via stdin/stdout 
 
 In proto3, `is_required()` is always false. Nullability defaults to `has_presence() && !is_required()` — so implicit singular fields are `NOT NULL`, while `optional`-qualified fields are nullable. Message fields (e.g. `google.protobuf.Timestamp`, `dbddl.UUID`) always have presence and are therefore nullable unless overridden with `db_nullable = false`. The `db_nullable` field option always overrides.
 
+`ColumnIR` carries two related but distinct flags:
+- `nullable` — drives SQL DDL (`NOT NULL` vs. nullable column)
+- `has_proto_presence` — `true` when `field.has_presence()` — guards `has_X()` calls and `ColumnNullableT` / `std::optional` in generated insert code
+
+Using `db_nullable = true` on a field without proto presence (a plain proto3 scalar) is a validation error: the generated insert code cannot represent NULL without a `has_X()` method.
+
+### Embedded sub-messages (`db_embed_prefix`)
+
+The `db_embed_prefix` field option (number 51013) on a message-type field causes its sub-fields to be flattened into the parent table with a column name prefix. For example, `GeoPoint loc = 3 [(dbddl.db_embed_prefix) = "loc"]` produces columns `loc_lat`, `loc_lon`, `loc_label`.
+
+- `ColumnIR.embed_accessor_prefix` holds the full proto accessor chain including trailing dot (e.g. `"loc()."`) so renderers emit `row.loc().lat()`.
+- `BuildEmbeddedColumns()` in `descriptor_utils.cpp` handles recursion for nested embeds.
+- `Timestamp` and `dbddl.UUID` fields within an embedded message are first-class types and expand normally via `BuildColumn`.
+
 ### Proto3 optional support
 
 `DbddlGenerator::GetSupportedFeatures()` advertises `FEATURE_PROTO3_OPTIONAL`. Without this, protoc rejects any proto3 file that uses the `optional` keyword.
